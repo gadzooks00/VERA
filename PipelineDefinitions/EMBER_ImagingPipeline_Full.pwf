@@ -35,8 +35,8 @@
 
     <Component Type="FlipVolume">
         <Name>"Flip Volume"</Name>
-	<Identifier>"ROSAVolume"</Identifier>
-	<FlipAxis>"x"</FlipAxis>
+	    <Identifier>"ROSAVolume"</Identifier>
+	    <FlipAxis>"x"</FlipAxis>
     </Component>
 
     <Component Type="MoveRASOrigin2Volume">
