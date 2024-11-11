@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
-<PipelineDefinition Name="Full ROSA Pipeline">
+<PipelineDefinition Name="EMBER Full Imaging Pipeline">
 
     <Component Type="FileLoader">
         <Name>"CT Loader"</Name>
@@ -77,10 +77,12 @@
         <LoadLUTFile>"FreeSurferColorLUT"</LoadLUTFile>
     </Component>
 
-    <Component Type="EEGElectrodeNames">
-        <Name>"Generate EEG Electrode Names Key"</Name>
+    <Component Type="ReplaceLabels">
+    	<Name>"Replace unknown labels"</Name>
+    	<ElectrodeLocationIdentifier>"ElectrodeLocation"</ElectrodeLocationIdentifier>
+    	<ReplaceableLabels>["unknown"]</ReplaceableLabels>
+    	<ReplacementRadius>[3]</ReplacementRadius>
     </Component>
-
 
 
 
