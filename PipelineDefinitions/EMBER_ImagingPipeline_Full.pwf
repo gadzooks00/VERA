@@ -33,12 +33,6 @@
         <FSVolume>"aparc+aseg"</FSVolume>
     </Component>
 
-    <Component Type="FlipVolume">
-        <Name>"Flip Volume"</Name>
-	    <Identifier>"ROSAVolume"</Identifier>
-	    <FlipAxis>"x"</FlipAxis>
-    </Component>
-
     <Component Type="MoveRASOrigin2Volume">
         <Name>"Move RAS Origin"</Name>
     </Component>
