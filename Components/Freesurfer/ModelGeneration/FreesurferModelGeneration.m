@@ -118,9 +118,6 @@ classdef FreesurferModelGeneration < AComponent
                     systemWSL(copy_cmd, '-echo');
                 end
             else
-                %----------------------------------------------------------------------
-                % ORIGINAL NON-WINDOWS SECTION (unchanged)
-                %----------------------------------------------------------------------
                 if (~exist(segmentationPath, 'dir') || ...
                         (exist(segmentationPath, 'dir') && ...
                         strcmp(questdlg('Found an Existing Segmentation Folder! Do you want to rerun the Segmentation?', ...
