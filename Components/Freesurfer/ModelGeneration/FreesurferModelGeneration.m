@@ -111,6 +111,10 @@ classdef FreesurferModelGeneration < AComponent
                     systemWSL(['chmod +x "' w_flatten_script '"'], '-echo');
                     flatten_cmd = ['"' w_flatten_script '" "' temp_segmentation_dir '"'];
                     systemWSL(flatten_cmd, '-echo');
+                    
+                    % Remove troublesome average file
+                    remove_fsaverage_cmd = sprintf('rm -rf "%s/Segmentation/fsaverage"', temp_segmentation_dir);
+                    systemWSL(remove_fsaverage_cmd, '-echo');
 
                     % Copy output back from WSL-local temp directory to expected path
                     copy_cmd = sprintf('cp -r "%s/." "%s/"', ...
