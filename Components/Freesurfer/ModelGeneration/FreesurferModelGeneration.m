@@ -59,6 +59,7 @@ classdef FreesurferModelGeneration < AComponent
             mri_path=GetFullPath(mri.Path);
             freesurferPath=obj.GetDependency('Freesurfer');
             recon_script=fullfile(fileparts(fileparts(mfilename('fullpath'))),'/scripts/importdata_recon-all.sh');
+            flatten_script=fullfile(fileparts(fileparts(mfilename('fullpath'))), '/scripts/flatten_symlinks.sh');
             segmentationPath=fullfile(segmentationFolder,'Segmentation');
 
             %----------------------------------------------------------------------
@@ -80,6 +81,7 @@ classdef FreesurferModelGeneration < AComponent
 
                 % Convert MATLAB paths to WSL
                 w_recon_script = convertToUbuntuSubsystemPath(recon_script, subsyspath);
+                w_flatten_script = convertToUbuntuSubsystemPath(flatten_script, subsyspath);
                 w_freesurferPath = convertToUbuntuSubsystemPath(freesurferPath, subsyspath);
                 w_mripath = convertToUbuntuSubsystemPath(mri_path, subsyspath);
 
@@ -95,6 +97,10 @@ classdef FreesurferModelGeneration < AComponent
                         rmdir(segmentationPath, 's');
                     end
 
+                    % Clear any previous Segmentation folder inside WSL temp
+                    clear_temp_subject = sprintf('rm -rf "%s/Segmentation"', temp_segmentation_dir);
+                    systemWSL(clear_temp_subject, '-echo');
+
                     % Run recon-all script in WSL-local path
                     systemWSL(['chmod +x "' w_recon_script '"'], '-echo');
                     shellcmd = ['"' w_recon_script '" "' w_freesurferPath '" "' ...
@@ -102,20 +108,13 @@ classdef FreesurferModelGeneration < AComponent
                     systemWSL(shellcmd, '-echo');
 
                     % Flatten symbolic links in temp_segmentation_dir
-                    flatten_cmd_str = ...
-                        "cd """ + temp_segmentation_dir + """ && " + ...
-                        "find . -type l | while read symlink; do " + ...
-                        "target=$(readlink -f ""$symlink""); " + ...
-                        "echo ""[Flattening] $symlink → $target""; " + ...
-                        "rm -f ""$symlink""; " + ...
-                        "cp ""$target"" ""$symlink""; " + ...
-                        "done";
-                    flatten_cmd = char(flatten_cmd_str);
+                    systemWSL(['chmod +x "' w_flatten_script '"'], '-echo');
+                    flatten_cmd = ['"' w_flatten_script '" "' temp_segmentation_dir '"'];
                     systemWSL(flatten_cmd, '-echo');
 
                     % Copy output back from WSL-local temp directory to expected path
-                    copy_cmd = sprintf('rsync -a "%s/" "%s/"', temp_segmentation_dir, ...
-                        convertToUbuntuSubsystemPath(segmentationPath, subsyspath));
+                    copy_cmd = sprintf('cp -r "%s/." "%s/"', ...
+                        temp_segmentation_dir, convertToUbuntuSubsystemPath(segmentationFolder, subsyspath));
                     systemWSL(copy_cmd, '-echo');
                 end
             else
