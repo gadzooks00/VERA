@@ -101,6 +101,18 @@ classdef FreesurferModelGeneration < AComponent
                         temp_segmentation_dir '" Segmentation "' w_mripath '"'];
                     systemWSL(shellcmd, '-echo');
 
+                    % Flatten symbolic links in temp_segmentation_dir
+                    flatten_cmd_str = ...
+                        "cd """ + temp_segmentation_dir + """ && " + ...
+                        "find . -type l | while read symlink; do " + ...
+                        "target=$(readlink -f ""$symlink""); " + ...
+                        "echo ""[Flattening] $symlink → $target""; " + ...
+                        "rm -f ""$symlink""; " + ...
+                        "cp ""$target"" ""$symlink""; " + ...
+                        "done";
+                    flatten_cmd = char(flatten_cmd_str);
+                    systemWSL(flatten_cmd, '-echo');
+
                     % Copy output back from WSL-local temp directory to expected path
                     copy_cmd = sprintf('rsync -a "%s/" "%s/"', temp_segmentation_dir, ...
                         convertToUbuntuSubsystemPath(segmentationPath, subsyspath));
@@ -131,12 +143,10 @@ classdef FreesurferModelGeneration < AComponent
             surf.Annotation=surf_model.Annotation;
             surf.AnnotationLabel=surf_model.AnnotationLabel;
 
-
             lsphere=obj.CreateOutput(obj.LeftSphereIdentifier);
             lsphere.Model=lsphere_model.Model;
             lsphere.Annotation=lsphere_model.Annotation;
             lsphere.AnnotationLabel=lsphere_model.AnnotationLabel;
-
 
             rsphere=obj.CreateOutput(obj.RightSphereIdentifier);
             rsphere.Model=rsphere_model.Model;
@@ -145,7 +155,6 @@ classdef FreesurferModelGeneration < AComponent
             pathInfo=obj.CreateOutput(obj.SegmentationPathIdentifier);
             [~,b]=fileparts(obj.ComponentPath);
             pathInfo.Path=fullfile('./',b,'Segmentation');
-
         end
     end
 end
