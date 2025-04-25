@@ -117,7 +117,7 @@ classdef FreesurferModelGeneration < AComponent
                     systemWSL(remove_fsaverage_cmd, '-echo');
 
                     % Copy output back from WSL-local temp directory to expected path
-                    copy_cmd = sprintf('cp -r "%s/." "%s/"', ...
+                    copy_cmd = sprintf('cp -r "%s/Segmentation" "%s/"', ...
                         temp_segmentation_dir, convertToUbuntuSubsystemPath(segmentationFolder, subsyspath));
                     systemWSL(copy_cmd, '-echo');
                 end
