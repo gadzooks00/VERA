@@ -12,10 +12,11 @@
         <Identifier>"MRI"</Identifier>
         <IdentifierType>"Volume"</IdentifierType>
     </Component>
-
-    <Component Type="ImportROSFile">
-        <Name>"Import ROSA File"</Name>
-    </Component>
+	
+ 	<Component Type="ElectrodeDefinitionConfiguration">
+        <Name>"Electrode Definition"</Name>
+		<Identifier>"ElectrodeDefinition"</Identifier>
+    </Component>    
 
     <Component Type="FreesurferModelGeneration">
         <Name>"Generate Freesurfer Model"</Name>
@@ -40,19 +41,7 @@
     <Component Type="Coregistration">
         <Name>"Coregister CT to MRI"</Name>
     </Component>
-
-    <Component Type="Coregistration">
-	<Name>"Coregister ROSA Volume"</Name>
-        <CTIdentifier>"ROSAVolume"</CTIdentifier>
-        <TIdentifier>"T_ROSA"</TIdentifier>
-    </Component>
     
-    <Component Type="ElectrodeTransformation">
-        <Name>"Transform ROSA Trajectories"</Name>
-        <TIdentifier>"T_ROSA"</TIdentifier>
-        <ElectrodeLocationIdentifier>"Trajectory"</ElectrodeLocationIdentifier>
-    </Component>
-
     <Component Type="MatlabElectrodeSelection">
         <Name>"MATLAB Electrode Selection"</Name>
     </Component>
