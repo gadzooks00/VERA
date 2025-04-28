@@ -68,7 +68,9 @@ classdef FreesurferDatExport < AComponent
             end
             
             % Popup stating where file was saved
-            msgbox(['Electrodes saved in folder: ',GetFullPath(path)],[obj.Name,' file(s) saved'])
+            message    = {'Electrodes saved in folder:',GetFullPath(path)};
+            msgBoxSize = [350, 125];
+            obj.VERAMessageBox(message,msgBoxSize);
         end
     end
 end

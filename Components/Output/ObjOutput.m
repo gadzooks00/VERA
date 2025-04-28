@@ -1,28 +1,24 @@
 classdef ObjOutput < AComponent
-    %NIIOUTPUT Creates a .nii file as Output of VERA using spm12's save_nii
-    %function
+    %ObjOutput Creates an .obj file as Output of VERA using obj_write_color
     properties
-        ElectrodeLocationIdentifier
         SurfaceIdentifier
         SavePathIdentifier char
     end
     
     methods
         function obj = ObjOutput()
-            obj.ElectrodeLocationIdentifier = 'ElectrodeLocation';
-            obj.SurfaceIdentifier           = 'Surface';
-            obj.SavePathIdentifier          = 'default';
+            obj.SurfaceIdentifier  = 'Surface';
+            obj.SavePathIdentifier = 'default';
         end
         
         function Publish(obj)
-            obj.AddInput(obj.ElectrodeLocationIdentifier, 'ElectrodeLocation');
-            obj.AddInput(obj.SurfaceIdentifier,           'Surface');
+            obj.AddInput(obj.SurfaceIdentifier, 'Surface');
         end
         
         function Initialize(obj)
         end
         
-        function []= Process(obj, eLocs, surf)
+        function []= Process(obj, surf)
             
             % create output file in DataOutput folder with ProjectName_ComponentName.mat (default behavior)
             if strcmp(obj.SavePathIdentifier,'default')
@@ -30,11 +26,14 @@ classdef ObjOutput < AComponent
                 [~, ProjectName] = fileparts(ProjectPath);
 
                 path = fullfile(obj.ComponentPath,'..','DataOutput');
-                file = [ProjectName, '_', obj.Name,'.obj'];
+                file = [ProjectName, '_', obj.Name];
+                ext  = '.obj';
 
             % if empty, use dialog
             elseif isempty(obj.SavePathIdentifier)
-                [file, path] = uiputfile('*.obj');
+                [file, path]      = uiputfile('*.obj');
+                [path, file, ext] = fileparts(fullfile(path,file));
+                
                 if isequal(file, 0) || isequal(path, 0)
                     error('Selection aborted');
                 end
@@ -42,13 +41,8 @@ classdef ObjOutput < AComponent
             % Otherwise, save with specified file name
             else
                 [path, file, ext] = fileparts(obj.SavePathIdentifier);
-                file = [file,ext];
-                path = fullfile(obj.ComponentPath,'..',path);
 
-                if ~strcmp(ext,'.obj')
-                    path = fullfile(obj.ComponentPath,'..',obj.SavePathIdentifier);
-                    file = [obj.Name,'.obj'];
-                end
+                path = fullfile(obj.ComponentPath,'..',path);
             end
 
             % convert spaces to underscores
@@ -87,7 +81,9 @@ classdef ObjOutput < AComponent
           
 
             % Popup stating where file was saved
-            msgbox(['File saved as: ',GetFullPath(fullfile(path,[file,ext]))],['"',obj.Name,'" file saved'])
+            message    = {'File saved as:',GetFullPath(fullfile(path,[file,ext]))};
+            msgBoxSize = [350, 125];
+            obj.VERAMessageBox(message,msgBoxSize);
         end
         
     end

@@ -1,6 +1,6 @@
 classdef TemplateComponent < AComponent
-    % This is a template component with the goal of illustrating a
-    % component structure
+    %This is a template component with the goal of illustrating a
+    %component structure
     properties
         Object1Identifier
         Object2Identifier
@@ -16,7 +16,7 @@ classdef TemplateComponent < AComponent
             % pipeline
             obj.Object1Identifier = 'CT';
             obj.Object2Identifier = 'MRI';
-            obj.Object3Identifier = 'RandomVol';
+            obj.Object3Identifier = 'OutputVolume';
         end
 
         function Publish(obj)
@@ -45,7 +45,9 @@ classdef TemplateComponent < AComponent
         function [obj1,obj3] = Process(obj,obj1,obj2)
             % Process() is called when the component is run. This is where
             % most of the functionality of a component should be included!
-            obj3 = obj1;
+            obj3       = obj.CreateOutput(obj.Object3Identifier);
+            obj3.Image = obj1.Image;
+            obj3.Path  = obj1.Path;
         end
     end
 end

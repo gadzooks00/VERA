@@ -1,7 +1,6 @@
 classdef CalculateDistanceToSurfaceLabel < AComponent
-    %CALCULATECLOSESTSURFACELABEL Calculates the distance from an electrode
+    %CalculateDistanceToSurfaceLabel Calculates the distance from an electrode
     %to every available Label defined on a Surface.
-    %
     
     properties
         SurfaceIdentifier
@@ -20,7 +19,7 @@ classdef CalculateDistanceToSurfaceLabel < AComponent
             obj.ElectrodeLocationIdentifier    = 'ElectrodeLocation';
             obj.ElectrodeLocationIdentifierOut = 'ElectrodeLocation';
             obj.Prefix                         = '';
-            obj.Radius                         = [0];
+            obj.Radius                         = '0';
         end
         
         function Publish(obj)
@@ -38,7 +37,12 @@ classdef CalculateDistanceToSurfaceLabel < AComponent
 
             [annotation_remap,cmap,names,name_id] = createColormapFromAnnotations(surf);
             annotationIds                         = [surf.AnnotationLabel.Identifier];
-            radius                                = str2num(obj.Radius);
+            
+            if isnumeric(obj.Radius)
+                radius = obj.Radius;
+            else
+                radius = str2double(obj.Radius);
+            end
 
             f = waitbar(0,'Calculating Distance from Electrode to Labels');
             for i = 1:length(annotationIds)
@@ -66,13 +70,19 @@ classdef CalculateDistanceToSurfaceLabel < AComponent
                 end
             end
                
-%             % James added
+            % James added
             for i_loc = 1:size(out.Location,1)
-                currentLoc = out.Annotation(i_loc);
-                [~,idx]    = min(currentLoc.Distance);
 
-                if currentLoc.Distance(idx) < radius 
-                   out.AddLabel(i_loc,currentLoc.Label{idx}); 
+                % only surface labels
+                surfaceLabel_logical = ismember(out.Annotation(i_loc).Label,names);
+                surfaceLabel_idx     = find(surfaceLabel_logical == 1);
+
+                currentLoc           = out.Annotation(i_loc);
+                [~,idx]              = min(currentLoc.Distance(surfaceLabel_idx));
+                minSurfaceLabel_idx  = surfaceLabel_idx(idx);
+
+                if currentLoc.Distance(minSurfaceLabel_idx) < radius 
+                   out.AddLabel(i_loc,currentLoc.Label{minSurfaceLabel_idx}); 
                 end
                 
             end
@@ -83,4 +93,19 @@ classdef CalculateDistanceToSurfaceLabel < AComponent
 
     end
 end
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 

@@ -1,6 +1,6 @@
 classdef MatOutputNoElectrodes < AComponent
-    %MATOUTPUT Creates a .mat file as Output of VERA similar to neuralact
-    %but with additional information about electrode locations
+    %MatOutputNoElectrodes Creates a .mat file as Output of VERA similar to neuralact
+    %but with no additional information about electrode locations
     properties
         SurfaceIdentifier
         SavePathIdentifier char
@@ -66,7 +66,9 @@ classdef MatOutputNoElectrodes < AComponent
             save(fullfile(path,file),'surfaceModel');
 
             % Popup stating where file was saved
-            msgbox(['File saved as: ',GetFullPath(fullfile(path,file))],['"',obj.Name,'" file saved'])
+            message    = {'File saved as:',GetFullPath(fullfile(path,file))};
+            msgBoxSize = [350, 125];
+            obj.VERAMessageBox(message,msgBoxSize);
         end
        
     end

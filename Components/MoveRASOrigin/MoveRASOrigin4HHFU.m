@@ -1,6 +1,6 @@
 classdef MoveRASOrigin4HHFU < AComponent
-    %MoveRASOrigin Moves the origin of RAS into the Center of the Volume
-    %pixels
+    %MoveRASOrigin4HHFU Moves the origin of RAS in a way that was working
+    %for HHFU subjects
    properties
         Identifier
     end

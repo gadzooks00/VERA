@@ -7,6 +7,7 @@ classdef EEGElectrodeNames < AComponent
         EEGNamesIdentifier            % EEG Names
         FileTypeWildcard char         % Wildcard Definition
         InputFilepath char            % Load file path
+        SkipGUI
     end
 
     properties
@@ -23,6 +24,7 @@ classdef EEGElectrodeNames < AComponent
             obj.EEGNames                      = [];
             obj.internalDefinitions           = [];
             obj.InputFilepath                 = '';
+            obj.SkipGUI                       = 0;
         end
 
         function Publish(obj)
@@ -52,8 +54,13 @@ classdef EEGElectrodeNames < AComponent
             % if an input file is specified, use it and disable the file
             % selection dialog
             if ~isempty(obj.InputFilepath)
-
-                [path, file, ext] = fileparts(fullfile(obj.ComponentPath,'..','..',obj.InputFilepath));
+                % working directory is VERA project
+                if isAbsolutePath(obj.InputFilepath)
+                    [path,file,ext] = fileparts(obj.InputFilepath);
+                else
+                    [path,file,ext] = fileparts(fullfile(obj.ComponentPath,'..',obj.InputFilepath));
+                    path = GetFullPath(path);
+                end
 
                 if strcmp(ext,'.dat') && exist(fullfile(path,[file,ext]),'file')
                     answer     = 'BCI2000';
@@ -132,9 +139,10 @@ classdef EEGElectrodeNames < AComponent
             obj.internalDefinitions = elNameKey;
 
             out = obj.CreateOutput(obj.EEGNamesIdentifier);
+            obj.EEGNames = obj.internalDefinitions;
+            
             % visualize
-            if(isempty(obj.EEGNames))
-                obj.EEGNames = obj.internalDefinitions;
+            if ~obj.SkipGUI
                 
                 h      = figure('Name',obj.Name);
                 elView = EEGNamesView('Parent',h);

@@ -1,7 +1,7 @@
 classdef ReplaceLabels < AComponent
-    %CREATELABELS The ReplaceLabels Component tries 
-    % to simplify existing electrode location labels based on some simple rules. 
-    % Rules will be applied iterative.
+    %ReplaceLabels The ReplaceLabels Component tries 
+    %to simplify existing electrode location labels based on some simple rules. 
+    % Rules will be applied iteratively.
     
     properties
         ElectrodeLocationIdentifier
@@ -13,9 +13,8 @@ classdef ReplaceLabels < AComponent
     methods
         function obj = ReplaceLabels()
             obj.ElectrodeLocationIdentifier='ElectrodeLocation';
-            obj.ReplaceableLabels={'unknown','Right-Cerebral-White-Matter','Left-Cerebral-White-Matter','Right-Hippocampus','Left-Hippocampus',...
-                'Right-Amygdala','Left-Amygdala','Right-Thalamus','Left-Thalamus','Right-Cerebral-Cortex','Left-Cerebral-Cortex'};
-            obj.ReplacementRadius=[0,3,3,1,1,1,1,1,1,10,10];
+            obj.ReplaceableLabels={'unknown','Right-Cerebral-White-Matter','Left-Cerebral-White-Matter','Right-Cerebral-Cortex','Left-Cerebral-Cortex'};
+            obj.ReplacementRadius=[0,3,3,10,10];
         end
         
         function Publish(obj)

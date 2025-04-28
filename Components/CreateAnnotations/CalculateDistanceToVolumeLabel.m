@@ -10,6 +10,7 @@ classdef CalculateDistanceToVolumeLabel < AComponent
         LabelNames
         Prefix
         LoadLUTFile
+        IsoValue
     end
     properties (Access = protected)
         internalIds
@@ -26,7 +27,8 @@ classdef CalculateDistanceToVolumeLabel < AComponent
             obj.ignoreList{end+1}              = 'internalIds';
             obj.ignoreList{end+1}              = 'LabelNames';
             obj.Prefix                         = '';
-            obj.LoadLUTFile                    = "false";
+            obj.LoadLUTFile                    = 'false';
+            obj.IsoValue                       = 0.1;
         end
 
         function  Publish(obj)
@@ -42,14 +44,17 @@ classdef CalculateDistanceToVolumeLabel < AComponent
                 return;
             elseif(strcmp(obj.LoadLUTFile,'thomas'))
                 return;
+            elseif exist(obj.LoadLUTFile,'file')
+                return;
+            else
+                path=obj.GetOptionalDependency('Freesurfer');
+                addpath(genpath(fullfile(path,'matlab')));
+                fprintf(['For Component: "',obj.Name,'"\nno labels provided or label configuration incorrect,\ntrying Freesurfer LUT\n\n']);
+                lut_path=fullfile(path,'FreeSurferColorLUT.txt');
+                [code, lut]=loadLUTFile(lut_path);
             end
             if(isempty(obj.LabelIds) || (length(obj.LabelIds) ~= length(obj.LabelNames)))
                 try
-                    path=obj.GetDependency('Freesurfer');
-                    addpath(genpath(fullfile(path,'matlab')));
-                    warning(['For Component: "',obj.Name,'" no labels provided or label configuration incorrect, trying Freesurfer LUT']);
-                    lut_path=fullfile(path,'FreeSurferColorLUT.txt');
-                    [code, lut]=loadLUTFile(lut_path);
                     if(isempty(obj.LabelIds))
                         obj.internalIds=code;
                     else
@@ -79,18 +84,27 @@ classdef CalculateDistanceToVolumeLabel < AComponent
         end
 
         function out=Process(obj,vol,elLocs)
-            if(strcmp(obj.LoadLUTFile,'true'))
+            if strcmp(obj.LoadLUTFile,'true')
                 [file,path]=uigetfile({'*.*'},'Select LUT'); % uigetfile extension filter is broken on MacOS, so allowing all file types
                 [obj.internalIds,obj.internalLabels]=loadLUTFile(fullfile(path,file));
-            elseif(strcmp(obj.LoadLUTFile,'FreeSurferColorLUT'))
-                path     = obj.GetDependency('Freesurfer');
+            elseif strcmp(obj.LoadLUTFile,'FreeSurferColorLUT')
+                path     = obj.GetOptionalDependency('Freesurfer');
                 lut_path = fullfile(path,'FreeSurferColorLUT.txt');
                 [obj.internalIds,obj.internalLabels]=loadLUTFile(lut_path);
-            elseif(strcmp(obj.LoadLUTFile,'thomas'))
-                path     = obj.GetDependency('Thomas');
+            elseif strcmp(obj.LoadLUTFile,'thomas')
+                path     = obj.GetOptionalDependency('Thomas');
                 lut_path = fullfile(path,'CustomAtlas.ctbl');
                 [obj.internalIds,obj.internalLabels]=loadLUTFile(lut_path);
+            elseif exist(obj.LoadLUTFile,'file')
+                if isAbsolutePath(obj.LoadLUTFile)
+                    [path,file,ext] = fileparts(obj.LoadLUTFile);
+                else
+                    [path,file,ext] = fileparts(fullfile(obj.ComponentPath,'..',obj.LoadLUTFile));
+                end
+                lut_path = fullfile(path,[file,ext]);
+                [obj.internalIds,obj.internalLabels] = loadLUTFile(lut_path);
             end
+
             % James added to deal with THOMAS lookup table
             if isa(obj.internalLabels,'char')
                 obj.internalLabels = cellstr(obj.internalLabels);
@@ -104,7 +118,7 @@ classdef CalculateDistanceToVolumeLabel < AComponent
                 waitbar(i/length(obj.internalIds),f);
                 if(any(any(any(binaryVol)))) %only check if exists
                     [x,y,z]=meshgrid(1:size(binaryVol,2),1:size(binaryVol,1),1:size(binaryVol,3));
-                    [~,vert]=isosurface(x,y,z,binaryVol,0.1); % James added the last input, isovalue. Similar to issue found in LabelVolume2Surface
+                    [~,vert]=isosurface(x,y,z,binaryVol,obj.IsoValue); % James added the last input, isovalue. Similar to issue found in LabelVolume2Surface
                     vert=[vert(:,2) vert(:,1) vert(:,3)]; %reorient from matlabs normal view...
                     vert=vol.Vox2Ras(vert);
                     for i_loc=1:size(out.Location,1)

@@ -1,6 +1,7 @@
 classdef Model3DView < AView & uix.Grid
     %Model3DView - View of a Surface
-    %   Shows a Surface and the Electrode Locations if available
+    % Shows a Surface and the Electrode Locations if available
+    % See also AView
     properties
         SurfaceIdentifier %Identifier for which surface to show
         ElectrodeLocationIdentifier %Identifier for the Electrode Location to be shown
@@ -71,7 +72,19 @@ classdef Model3DView < AView & uix.Grid
                     % trisurf(surface.Model.tri, surface.Model.vert(:, 1), surface.Model.vert(:, 2), surface.Model.vert(:, 3) ,'Parent',obj.axModel,settings{:});
                 elseif(~isempty(surface.Model) && ~isempty(surface.Annotation))
                     pbar=waitbar(0,'Creating 3D Model...');
-                    [annotation_remap,cmap,names,name_id]=createColormapFromAnnotations(surface);
+                    
+                    % append gray bar between surface and electrodes on colorbar
+                    barflag = 0;
+                    if ~isempty(obj.ElectrodeLocationIdentifier)
+                        if isprop(obj.AvailableData(obj.ElectrodeLocationIdentifier),'Location')
+                            if ~isempty(obj.AvailableData(obj.ElectrodeLocationIdentifier).Location)
+                                barflag = 1;
+                            end
+                        end
+                    end
+                    
+                    [annotation_remap,cmap,names,name_id]=createColormapFromAnnotations(surface,barflag);
+
                     obj.vSurf=plot3DModel(obj.axModel,surface.Model,annotation_remap);
                     % trisurf(surface.Model.tri, surface.Model.vert(:, 1), surface.Model.vert(:, 2), surface.Model.vert(:, 3),annotation_remap ,'Parent',obj.axModel,settings{:});
                     colormap(obj.axModel,cmap);
@@ -109,8 +122,12 @@ classdef Model3DView < AView & uix.Grid
                             end
                         end
                     end
-                    cb=colorbar(obj.axModel,'FontSize',12,'location','east','TickLabelInterpreter','none','Ticks',1:length(name_id));
-                    cb=colorbar(obj.axModel,'Ticks',linspace(1.5,length(name_id)+0.5,length(name_id)+1),'Limits',[min(name_id) max(name_id)],'TickLabels',names,'FontSize',12,'location','east','TickLabelInterpreter','none');
+                    if  length(names) == 1
+                        cb = colorbar(obj.axModel,'FontSize',12,'location','east','TickLabelInterpreter','none','Ticks',1,'TickLabels',names);
+                    elseif length(names) > 1 && length(names) < 100 % color bars that are too long are illegible anyway
+                        cb = colorbar(obj.axModel,'Ticks',linspace(1.5,length(name_id)+0.5,length(name_id)+1),'Limits',[min(name_id) max(name_id)],...
+                            'TickLabels',names,'FontSize',12,'location','east','TickLabelInterpreter','none');
+                    end
                     % set(cb,'TickLabelInterpreter','none')
                     close(pbar);
                 end

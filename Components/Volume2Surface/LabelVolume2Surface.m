@@ -8,6 +8,7 @@ classdef LabelVolume2Surface < AComponent
         LabelIds
         LabelNames
         Smoothing
+        IsoValue
         LoadLUTFile
         Prefix
     end
@@ -25,8 +26,9 @@ classdef LabelVolume2Surface < AComponent
             obj.LabelNames         = {};
             obj.ignoreList{end+1}  = 'internalIds';
             obj.ignoreList{end+1}  = 'LabelNames';
-            obj.Smoothing          = [];
-            obj.LoadLUTFile        = "false";
+            obj.Smoothing          = 3;
+            obj.IsoValue           = 0.1;
+            obj.LoadLUTFile        = 'false';
             obj.Prefix             = '';
         end
 
@@ -39,28 +41,31 @@ classdef LabelVolume2Surface < AComponent
 
         end
 
-
         function Initialize(obj)
             if ~isempty(obj.LabelIds) && (length(obj.LabelIds) == length(obj.LabelNames))
                 obj.internalIds    = obj.LabelIds;
                 obj.internalLabels = obj.LabelNames;
             end
 
-            if(strcmp(obj.LoadLUTFile,'true'))
+            path = obj.GetOptionalDependency('Freesurfer');
+            addpath(genpath(fullfile(path,'matlab')));
+
+            if strcmp(obj.LoadLUTFile,'true')
                 return;
-            elseif(strcmp(obj.LoadLUTFile,'FreeSurferColorLUT'))
+            elseif strcmp(obj.LoadLUTFile,'FreeSurferColorLUT')
                 return;
-            elseif(strcmp(obj.LoadLUTFile,'thomas'))
+            elseif strcmp(obj.LoadLUTFile,'thomas')
                 return;
+            elseif exist(obj.LoadLUTFile,'file')
+                return;
+            else
+                fprintf(['For Component: "',obj.Name,'"\nno labels provided or label configuration incorrect,\ntrying Freesurfer LUT\n\n']);
+                lut_path    = fullfile(path,'FreeSurferColorLUT.txt');
+                [code, lut] = loadLUTFile(lut_path);
             end
 
             if(isempty(obj.LabelIds) || (length(obj.LabelIds) ~= length(obj.LabelNames)))
                 try
-                    path = obj.GetDependency('Freesurfer');
-                    addpath(genpath(fullfile(path,'matlab')));
-                    warning(['For Component: "',obj.Name,'" no labels provided or label configuration incorrect, trying Freesurfer LUT']);
-                    lut_path    = fullfile(path,'FreeSurferColorLUT.txt');
-                    [code, lut] = loadLUTFile(lut_path);
                     if(isempty(obj.LabelIds))
                         obj.internalIds = code;
                     else
@@ -90,31 +95,66 @@ classdef LabelVolume2Surface < AComponent
         end
 
         function surf=Process(obj,vol)
-            if (isempty(obj.LabelIds) || (length(obj.LabelIds) ~= length(obj.LabelNames)))
-                if(strcmp(obj.LoadLUTFile,'true'))
-                    [file,path]=uigetfile({'*.*'},'Select LUT'); % uigetfile extension filter is broken on MacOS, so allowing all file types
-                    [obj.internalIds,obj.internalLabels]=loadLUTFile(fullfile(path,file));
-                elseif(strcmp(obj.LoadLUTFile,'FreeSurferColorLUT'))
-                    path     = obj.GetDependency('Freesurfer');
-                    lut_path = fullfile(path,'FreeSurferColorLUT.txt');
-                    [obj.internalIds,obj.internalLabels]=loadLUTFile(lut_path);
-                elseif(strcmp(obj.LoadLUTFile,'thomas')) 
-                    path     = obj.GetDependency('Thomas');
-                    lut_path = fullfile(path,'CustomAtlas.ctbl');
-                    [obj.internalIds,obj.internalLabels]=loadLUTFile(lut_path);
-                end
-            end
-            % James added to deal with THOMAS lookup table
-            if isa(obj.internalLabels,'char')
-                obj.internalLabels = cellstr(obj.internalLabels);
-            end
 
             surf = obj.CreateOutput(obj.SurfaceIdentifier);
+
+            if strcmp(obj.LoadLUTFile,'true')
+                [file,path] = uigetfile({'*.*'},'Select LUT'); % uigetfile extension filter is broken on MacOS, so allowing all file types
+                [LUT_Ids,LUT_Labels,rgbv] = loadLUTFile(fullfile(path,file));
+            elseif strcmp(obj.LoadLUTFile,'FreeSurferColorLUT')
+                path     = obj.GetOptionalDependency('Freesurfer');
+                lut_path = fullfile(path,'FreeSurferColorLUT.txt');
+                [LUT_Ids,LUT_Labels,rgbv] = loadLUTFile(lut_path);
+            elseif strcmp(obj.LoadLUTFile,'thomas')
+                path     = obj.GetOptionalDependency('Thomas');
+                lut_path = fullfile(path,'CustomAtlas.ctbl');
+                [LUT_Ids,LUT_Labels,rgbv] = loadLUTFile(lut_path);
+            elseif exist(obj.LoadLUTFile,'file')
+                if isAbsolutePath(obj.LoadLUTFile)
+                    [path,file,ext] = fileparts(obj.LoadLUTFile);
+                else
+                    [path,file,ext] = fileparts(fullfile(obj.ComponentPath,'..',obj.LoadLUTFile));
+                end
+                lut_path = fullfile(path,[file,ext]);
+                [LUT_Ids,LUT_Labels,rgbv] = loadLUTFile(lut_path);
+            end
+
+            if isa(LUT_Labels,'char')
+                LUT_Labels = cellstr(LUT_Labels);
+            end
+
+            % Use the whole lookup table for the volume if no labelIds are provided
+            if (isempty(obj.LabelIds) || (length(obj.LabelIds) ~= length(obj.LabelNames)))
+                obj.internalIds    = LUT_Ids;
+                obj.internalLabels = LUT_Labels;
+            end
+
+            % unknown labels mess with the color table. Not sure why.
+            remidx = [];
+            for i = 1:length(obj.internalLabels)
+                if strcmp(obj.internalLabels{i},'Unknown') || strcmp(obj.internalLabels{i},'unknown')
+                    remidx = [remidx, i];
+                end
+            end
+            obj.internalIds(remidx)    = [];
+            obj.internalLabels(remidx) = [];
+
+            % Set color of surface to preferred colors in lookup table. If
+            % they don't exist, make up colors
+            if exist('rgbv','var')
+                if ~isempty(rgbv)
+                    [~,~,linenum] = intersect(obj.internalIds,LUT_Ids,'stable');
+                    colmap        = rgbv(linenum,1:3)./255;
+                else
+                    colmap        = distinguishable_colors(length(obj.internalIds));
+                end
+            else
+                colmap = distinguishable_colors(length(obj.internalIds));
+            end
 
             tri_tot         = [];
             vert_tot        = [];
             surf.Annotation = [];
-            colmap          = distinguishable_colors(length(obj.internalIds));
             ii = 1;
             for i = 1:length(obj.internalIds)
                 binaryVol = zeros(size(vol.Image.img));
@@ -125,7 +165,7 @@ classdef LabelVolume2Surface < AComponent
                         binaryVol = smooth3(binaryVol,'box',obj.Smoothing);
                     end
 
-                    [tri,vert] = isosurface(x,y,z,binaryVol,0.1); % James set the last input, isovalue. Not sure what is the appropriate value here
+                    [tri,vert] = isosurface(x,y,z,binaryVol,obj.IsoValue); % James set the last input, isovalue. Not sure what is the appropriate value here
 
                     % original
                     % tri      = tri + size(vert_tot, 1);
@@ -144,7 +184,8 @@ classdef LabelVolume2Surface < AComponent
                     end
 
                     if ~isempty(vert) && newisoval
-                        warndlg(['Warning! Unable to generate surface for ',num2str(obj.internalIds(i)),', ', obj.internalLabels{i}, ' at isovalue of 0.1. ' ...
+                        warndlg(['Warning! Unable to generate surface for ',num2str(obj.internalIds(i)),', ', obj.internalLabels{i},...
+                            ' at isovalue of ',num2str(obj.IsoValue),'. ' ...
                             'Surface generated at different isovalue.']);
                     end
 
@@ -166,10 +207,17 @@ classdef LabelVolume2Surface < AComponent
 
                     ii = ii + 1;
                 end
-            end
-            surf.Model.vert = vol.Vox2Ras(vert_tot);
-            surf.Model.tri  = tri_tot;
 
+            end
+
+            if ~any(any(vert_tot)) || ~any(any(tri_tot)) % volume does not exist
+                errordlg(['Error: Volume does not exist! Check that the specified LabelNames and LabelIds are correct ',...
+                                'and that these volume labels exist in the VolumeIdentifier.'],'Volume does not exist!');
+            else
+                surf.Model.vert = vol.Vox2Ras(vert_tot);
+                surf.Model.tri  = tri_tot;
+            end
+           
         end
     end
 end

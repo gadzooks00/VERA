@@ -20,13 +20,49 @@
         <InputFilepath>"notes/executed/"</InputFilepath>
     </Component>
 
-    <Component Type="ImportFreesurferSegmentation">
-        <Name>"Load Freesurfer Segmentation Folder"</Name>
-        <InputFilepath>"imaging/segmentation/"</InputFilepath>
+
+
+    <Component Type="MoveRASOrigin2Volume">
+        <Name>"Move RAS Origin"</Name>
     </Component>
 
-    <Component Type="FreesurferSurfaceLoader">
-        <Name>"Load Freesurfer Surface"</Name>
+    <Component Type="Coregistration">
+        <Name>"Coregister CT to MRI"</Name>
+    </Component>
+
+    <Component Type="Coregistration">
+	    <Name>"Coregister ROSA Volume"</Name>
+        <CoregistrationIdentifier>"ROSAVolume"</CoregistrationIdentifier>
+        <TIdentifier>"T_ROSA"</TIdentifier>
+    </Component>
+
+    <Component Type="ElectrodeTransformation">
+        <Name>"Transform ROSA Trajectories"</Name>
+        <TIdentifier>"T_ROSA"</TIdentifier>
+        <ElectrodeLocationIdentifier>"Trajectory"</ElectrodeLocationIdentifier>
+    </Component>
+
+    <Component Type="MayoReface">
+        <Identifier>"MRI"</Identifier>
+        <ImType>"T1"</ImType>
+        <Name>"Reface MRI"</Name>
+    </Component>
+
+    <Component Type="MayoReface">
+        <Identifier>"CT"</Identifier>
+        <ImType>"CT"</ImType>
+        <Name>"Reface CT"</Name>
+    </Component>
+
+    <Component Type="MayoReface">
+        <Identifier>"ROSAVolume"</Identifier>
+        <ImType>"T1"</ImType>
+        <Name>"Reface ROSA"</Name>
+    </Component>
+
+    <Component Type="FreesurferModelGeneration">
+        <Name>"Generate Freesurfer Model"</Name>
+        <AnnotationType>"aparc"</AnnotationType>
     </Component>
 
     <Component Type="LoadFreesurferSegmentationVolume">
@@ -42,29 +78,6 @@
     <Component Type="FreesurferThalamusSegmentation">
         <Name>"Load or Generate Thalamus Subsegmentation"</Name>
         <VolumeIdentifier>"Thalamus"</VolumeIdentifier>
-    </Component>
-
-
-
-
-    <Component Type="MoveRASOrigin2Volume">
-        <Name>"Move RAS Origin"</Name>
-    </Component>
-
-    <Component Type="Coregistration">
-        <Name>"Coregister CT to MRI"</Name>
-    </Component>
-
-    <Component Type="Coregistration">
-	    <Name>"Coregister ROSA Volume"</Name>
-        <CTIdentifier>"ROSAVolume"</CTIdentifier>
-        <TIdentifier>"T_ROSA"</TIdentifier>
-    </Component>
-
-    <Component Type="ElectrodeTransformation">
-        <Name>"Transform ROSA Trajectories"</Name>
-        <TIdentifier>"T_ROSA"</TIdentifier>
-        <ElectrodeLocationIdentifier>"Trajectory"</ElectrodeLocationIdentifier>
     </Component>
 
     <Component Type="MatlabElectrodeSelection">
@@ -110,8 +123,8 @@
     <Component Type="ReplaceLabels">
         <Name>"Replace Labels"</Name>
         <ElectrodeLocationIdentifier>"ElectrodeLocation"</ElectrodeLocationIdentifier>
-        <ReplaceableLabels>["Unknown","unknown","Right-Cerebral-White-Matter","Left-Cerebral-White-Matter","Right-Hippocampus","Left-Hippocampus","Right-Amygdala","Left-Amygdala","Right-Thalamus","Left-Thalamus","Right-Cerebral-Cortex","Left-Cerebral-Cortex","ctx-rh-insula","ctx-lh-insula"]</ReplaceableLabels>
-        <ReplacementRadius>[0,0,3,3,1,1,1,1,1,1,10,10,1,1]</ReplacementRadius>
+        <ReplaceableLabels>["Unknown","unknown","Right-Cerebral-White-Matter","Left-Cerebral-White-Matter","Right-Hippocampus","Left-Hippocampus","Right-Amygdala","Left-Amygdala","Right-Thalamus","Left-Thalamus","Right-Cerebral-Cortex","Left-Cerebral-Cortex"]</ReplaceableLabels>
+        <ReplacementRadius>[0,0,3,3,1,1,1,1,1,1,10,10]</ReplacementRadius>
     </Component>
     
     <Component Type="ReplaceLabels">
@@ -161,7 +174,6 @@
 
 
 
-
     <Component Type="MatOutput">
         <Name>"Brain"</Name>
         <SurfaceIdentifier>"Surface"</SurfaceIdentifier>
@@ -200,7 +212,6 @@
 
 
 
-
     <Component Type="LoadFSMNIProjection">
         <Name>"Load MNI Projection"</Name>
     </Component>
@@ -221,8 +232,7 @@
     </Component>
 
 
-  
-	
+
     <View Type="Model3DView">
 	    <Name>"Cortex 3D View"</Name>
     </View>

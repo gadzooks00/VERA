@@ -125,9 +125,17 @@ classdef (Abstract) AComponent < Serializable
             % Dependencies
             path=obj.GetDependency('TempPath');
         end
+
         function d=GetDependency(~,name)
             % GetDependency - Tries to resolve and return a Dependency
             % See also DependencyHandler
+            d=DependencyHandler.Instance.GetDependency(name);
+        end
+
+        function d=GetOptionalDependency(~,name)
+            % GetOptionalDependency - Tries to resolve and return a Dependency
+            % See also DependencyHandler
+            % This exists to make it easier to search through GetDependency calls
             d=DependencyHandler.Instance.GetDependency(name);
         end
         
@@ -213,6 +221,33 @@ classdef (Abstract) AComponent < Serializable
             else
                 error('Requested Output is not part of this Component, All Outputs have to be defined during the Publish phase');
             end
+        end
+
+        function VERAMessageBox(obj,message,msgBoxSize)
+            monitorPositions = get(0, 'MonitorPositions');
+            mainMonitor = monitorPositions(1, :);
+
+            % Extract width and height of the primary monitor
+            mainMonitorWidth  = mainMonitor(3);
+            mainMonitorHeight = mainMonitor(4);
+            
+            % Calculate the center of the primary monitor
+            centerX = mainMonitor(1) + mainMonitorWidth / 2;
+            centerY = mainMonitor(2) + mainMonitorHeight / 2;
+
+            boxFig    = uifigure('Name',obj.Name,'Position',[centerX-msgBoxSize(1)/2 centerY-msgBoxSize(2)/2 msgBoxSize]);
+
+            % Create a label for the message
+            uilabel(boxFig, ...
+                'Text',                message, ...
+                'Position',            [10, 10, msgBoxSize(1)-10, msgBoxSize(2)], ... % [left, bottom, width, height]
+                'WordWrap',            'on', ...
+                'HorizontalAlignment', 'center', ...
+                'FontSize',            12);
+        
+            % Create an OK button that closes the dialog
+            uibutton(boxFig,'Text','OK','Position',[(msgBoxSize(1)-100)/2, 10, 100 30], ...
+                'ButtonPushedFcn',@(btn, event) close(boxFig));
         end
     end
 end

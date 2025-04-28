@@ -1,14 +1,16 @@
 classdef NiiOutput < AComponent
-    %NIIOUTPUT Creates a .nii file as Output of VERA using spm12's save_nii
+    %NiiOutput Creates a .nii file as Output of VERA using spm12's save_nii
     %function
     properties
         VolumeIdentifier
+        RASResliceFlag
         SavePathIdentifier char
     end
     
     methods
         function obj = NiiOutput()
             obj.VolumeIdentifier   = 'MRI';
+            obj.RASResliceFlag     = 1;
             obj.SavePathIdentifier = 'default';
         end
         
@@ -55,6 +57,11 @@ classdef NiiOutput < AComponent
             if ~isfolder(path)
                 mkdir(path)
             end
+
+            % Reslice volume to be in RAS coordinates using same pixel size
+            if obj.RASResliceFlag
+                vol = vol.GetRasSlicedVolume(vol.Image.hdr.dime.pixdim(2:4),1);
+            end
             
             if(isfield(vol.Image,'untouch') && vol.Image.untouch == 1)
                 save_untouch_nii(vol.Image,fullfile(path,file));
@@ -63,7 +70,9 @@ classdef NiiOutput < AComponent
             end
 
             % Popup stating where file was saved
-            msgbox(['File saved as: ',GetFullPath(fullfile(path,file))],['"',obj.Name,'" file saved'])
+            message    = {'File saved as:',GetFullPath(fullfile(path,file))};
+            msgBoxSize = [350, 125];
+            obj.VERAMessageBox(message,msgBoxSize);
         end
         
     end
