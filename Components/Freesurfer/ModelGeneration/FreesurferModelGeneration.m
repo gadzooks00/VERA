@@ -132,7 +132,7 @@ classdef FreesurferModelGeneration < AComponent
                     end
                     system(['chmod +x "' recon_script '"'], '-echo');
                     shellcmd = [recon_script ' "' freesurferPath '" "' ...
-                        segmentationPath '" Segmentation "' mri_path '"'];
+                        segmentationFolder '" Segmentation "' mri_path '"'];
                     system(shellcmd, '-echo');
                 end
             end
