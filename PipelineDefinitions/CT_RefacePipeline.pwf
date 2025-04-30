@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="utf-8"?>
+<PipelineDefinition Name="CT_RefacePipeline.pwf">
+    
+<Component Type="FileLoader">
+    <Identifier>"CT"</Identifier>
+    <IdentifierType>"Volume"</IdentifierType>
+    <FileTypeWildcard>"*.*"</FileTypeWildcard>
+    <Name>"CT Loader"</Name>
+</Component>
+        
+<Component Type="MayoReface">
+    <Identifier>"CT"</Identifier>
+    <ImType>"CT"</ImType>
+    <Name>"Reface CT"</Name>
+</Component>
+    
+<Component Type="NiiOutput">
+    <Name>"Create CT.nii"</Name>
+    <VolumeIdentifier>"CT"</VolumeIdentifier>
+    <SavePathIdentifier>"default"</SavePathIdentifier>
+</Component>
+    
+<View Type="SliceViewerView">
+    <Name>"Slice Viewer"</Name>
+</View>
+    
+</PipelineDefinition>

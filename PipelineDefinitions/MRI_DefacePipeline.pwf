@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
-<PipelineDefinition Name="RefaceDicomPipeline.pwf">
+<PipelineDefinition Name="MRI Deface Pipeline.pwf">
     
 <Component Type="FileLoader">
     <Identifier>"MRI"</Identifier>
@@ -8,24 +8,15 @@
     <Name>"MRI Loader"</Name>
 </Component>
     
-<Component Type="LoadDicomHeader">
-    <Identifier>"MRIHeader"</Identifier>
-    <InputFilepath>""</InputFilepath>
-    <Anonymize>1</Anonymize>
-    <Name>"Load MRI Dicom Header"</Name>
-</Component>
-    
-<Component Type="MayoReface">
+<Component Type="FreesurferDeface">
     <Identifier>"MRI"</Identifier>
-    <ImType>"T1"</ImType>
-    <Name>"Reface MRI"</Name>
+    <Name>"Deface MRI"</Name>
 </Component>
     
-<Component Type="DicomOutput">
+<Component Type="NiiOutput">
+    <Name>"Create MRI.nii"</Name>
     <VolumeIdentifier>"MRI"</VolumeIdentifier>
-    <HeaderIdentifier>"MRIHeader"</HeaderIdentifier>
     <SavePathIdentifier>"default"</SavePathIdentifier>
-    <Name>"MRI Dicom Output"</Name>
 </Component>
     
 <View Type="SliceViewerView">

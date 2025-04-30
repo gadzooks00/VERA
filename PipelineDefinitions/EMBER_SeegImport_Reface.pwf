@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
-<PipelineDefinition Name="EMBER Full Imaging Pipeline">
+<PipelineDefinition Name="EMBER SEEG Import Reface Pipeline">
 
     <Component Type="FileLoader">
         <Name>"CT Loader"</Name>
@@ -17,21 +17,10 @@
         <Name>"Import ROSA File"</Name>
     </Component>
 
-    <Component Type="FreesurferModelGeneration">
-        <Name>"Generate Freesurfer Model"</Name>
-		<AnnotationType>"aparc"</AnnotationType>
+    <Component Type="ImportFreesurferSegmentation">
+        <Name>"Load Freesurfer Segmentation Folder"</Name>
     </Component>
 
-
-
-    <Component Type="FreesurferSurfaceLoader">
-        <Name>"Load Freesurfer Surface"</Name>
-    </Component>
-
-    <Component Type="LoadFreesurferSegmentationVolume">
-        <Name>"Load Freesurfer Segmentation Volume"</Name>
-        <FSVolume>"aparc+aseg"</FSVolume>
-    </Component>
 
     <Component Type="MoveRASOrigin2Volume">
         <Name>"Move RAS Origin"</Name>
@@ -47,6 +36,26 @@
         <TIdentifier>"T_ROSA"</TIdentifier>
     </Component>
     
+	<Component Type="MayoReface">
+        <Name>"Reface MRI"</Name>
+		<Identifier>"MRI"</Identifier>
+		<ImType>"T1"</ImType>
+	</Component>
+
+	<Component Type="MayoReface">
+        <Name>"Reface CT"</Name>
+		<Identifier>"CT"</Identifier>
+		<ImType>"CT"</ImType>
+	</Component>
+
+    <Component Type="FreesurferSurfaceLoader">
+        <Name>"Load Freesurfer Surface"</Name>
+    </Component>
+
+    <Component Type="LoadFreesurferSegmentationVolume">
+        <Name>"Load Freesurfer Segmentation Volume"</Name>
+        <FSVolume>"aparc+aseg"</FSVolume>
+    </Component>
     <Component Type="ElectrodeTransformation">
         <Name>"Transform ROSA Trajectories"</Name>
         <TIdentifier>"T_ROSA"</TIdentifier>

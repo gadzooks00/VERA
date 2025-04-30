@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="utf-8"?>
+<PipelineDefinition Name="MRI Reface Pipeline.pwf">
+    
+<Component Type="FileLoader">
+    <Identifier>"MRI"</Identifier>
+    <IdentifierType>"Volume"</IdentifierType>
+    <FileTypeWildcard>"*.*"</FileTypeWildcard>
+    <Name>"MRI Loader"</Name>
+</Component>
+    
+<Component Type="MayoReface">
+    <Identifier>"MRI"</Identifier>
+    <ImType>"T1"</ImType>
+    <Name>"Reface MRI"</Name>
+</Component>
+    
+<Component Type="NiiOutput">
+    <Name>"Create MRI.nii"</Name>
+    <VolumeIdentifier>"MRI"</VolumeIdentifier>
+    <SavePathIdentifier>"default"</SavePathIdentifier>
+</Component>
+    
+<View Type="SliceViewerView">
+    <Name>"Slice Viewer"</Name>
+</View>
+    
+</PipelineDefinition>
