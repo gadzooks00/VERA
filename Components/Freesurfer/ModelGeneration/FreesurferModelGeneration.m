@@ -61,6 +61,7 @@ classdef FreesurferModelGeneration < AComponent
             recon_script=fullfile(fileparts(fileparts(mfilename('fullpath'))),'/scripts/importdata_recon-all.sh');
             flatten_script=fullfile(fileparts(fileparts(mfilename('fullpath'))), '/scripts/flatten_symlinks.sh');
             segmentationPath=fullfile(segmentationFolder,'Segmentation');
+            % segmentationPath=fullfile(segmentationFolder,'Segmentation');
 
             %----------------------------------------------------------------------
             % [MODIFIED] Use WSL-local working directory for Freesurfer if on Windows
@@ -72,17 +73,18 @@ classdef FreesurferModelGeneration < AComponent
                 [~, wsl_home] = systemWSL('echo $HOME', '-echo');
                 wsl_home = strtrim(wsl_home);
 
-                % Define WSL-local temp directory
-                temp_segmentation_dir = sprintf('%s/freesurfer_temp', wsl_home);
+                % % Define WSL-local temp directory
+                % temp_segmentation_dir = sprintf('%s/freesurfer_temp', wsl_home);
 
-                % Ensure directory exists in WSL filesystem
-                mkdir_cmd = sprintf('mkdir -p "%s"', temp_segmentation_dir);
-                systemWSL(mkdir_cmd, '-echo');
+                % % Ensure directory exists in WSL filesystem
+                % mkdir_cmd = sprintf('mkdir -p "%s"', temp_segmentation_dir);
+                % systemWSL(mkdir_cmd, '-echo');
 
                 % Convert MATLAB paths to WSL
                 w_recon_script = convertToUbuntuSubsystemPath(recon_script, subsyspath);
                 w_flatten_script = convertToUbuntuSubsystemPath(flatten_script, subsyspath);
                 w_freesurferPath = convertToUbuntuSubsystemPath(freesurferPath, subsyspath);
+                w_segmentationFolder=convertToUbuntuSubsystemPath(segmentationFolder,subsyspath);
                 w_mripath = convertToUbuntuSubsystemPath(mri_path, subsyspath);
 
                 % Run segmentation if needed
@@ -97,29 +99,33 @@ classdef FreesurferModelGeneration < AComponent
                         rmdir(segmentationPath, 's');
                     end
 
-                    % Clear any previous Segmentation folder inside WSL temp
-                    clear_temp_subject = sprintf('rm -rf "%s/Segmentation"', temp_segmentation_dir);
-                    systemWSL(clear_temp_subject, '-echo');
+                    % % Clear any previous Segmentation folder inside WSL temp
+                    % clear_temp_subject = sprintf('rm -rf "%s/Segmentation"', temp_segmentation_dir);
+                    % systemWSL(clear_temp_subject, '-echo');
 
                     % Run recon-all script in WSL-local path
                     systemWSL(['chmod +x "' w_recon_script '"'], '-echo');
+                    % shellcmd = ['"' w_recon_script '" "' w_freesurferPath '" "' ...
+                    %     temp_segmentation_dir '" Segmentation "' w_mripath '"'];
                     shellcmd = ['"' w_recon_script '" "' w_freesurferPath '" "' ...
-                        temp_segmentation_dir '" Segmentation "' w_mripath '"'];
+                        w_segmentationFolder '" Segmentation "' w_mripath '"'];
                     systemWSL(shellcmd, '-echo');
 
-                    % Flatten symbolic links in temp_segmentation_dir
+                    % % Flatten symbolic links in temp_segmentation_dir
                     systemWSL(['chmod +x "' w_flatten_script '"'], '-echo');
-                    flatten_cmd = ['"' w_flatten_script '" "' temp_segmentation_dir '"'];
+                    % flatten_cmd = ['"' w_flatten_script '" "' temp_segmentation_dir '"'];
+                    flatten_cmd = ['"' w_flatten_script '" "' w_segmentationFolder '"'];
                     systemWSL(flatten_cmd, '-echo');
-                    
-                    % Remove troublesome average file
-                    remove_fsaverage_cmd = sprintf('rm -rf "%s/Segmentation/fsaverage"', temp_segmentation_dir);
+                     
+                    % % Remove troublesome average file
+                    % remove_fsaverage_cmd = sprintf('rm -rf "%s/Segmentation/fsaverage"', temp_segmentation_dir);
+                    remove_fsaverage_cmd = sprintf('rm -rf "%s/Segmentation/fsaverage"', w_segmentationFolder);
                     systemWSL(remove_fsaverage_cmd, '-echo');
 
-                    % Copy output back from WSL-local temp directory to expected path
-                    copy_cmd = sprintf('cp -r "%s/Segmentation" "%s/"', ...
-                        temp_segmentation_dir, convertToUbuntuSubsystemPath(segmentationFolder, subsyspath));
-                    systemWSL(copy_cmd, '-echo');
+                    % % Copy output back from WSL-local temp directory to expected path
+                    % copy_cmd = sprintf('cp -r "%s/Segmentation" "%s/"', ...
+                    %     temp_segmentation_dir, convertToUbuntuSubsystemPath(segmentationFolder, subsyspath));
+                    % systemWSL(copy_cmd, '-echo');
                 end
             else
                 if (~exist(segmentationPath, 'dir') || ...
