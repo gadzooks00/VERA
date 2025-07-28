@@ -23,7 +23,6 @@ classdef EEGElectrodeNames < AComponent
             obj.EEGNamesIdentifier            = 'EEGNames';
             obj.FileTypeWildcard              = '*.*';
             obj.EEGNames                      = [];
-            % obj.columnNames                   = {'EEG Names','VERA Names','EEG Numbers','VERA Numbers'};
             obj.internalDefinitions           = [];
             obj.InputFilepath                 = '';
             obj.SkipGUI                       = 0;
@@ -133,17 +132,52 @@ classdef EEGElectrodeNames < AComponent
                 else
                     T = readtable(fullfile(path,file));
                     
-                    eeg_elNames  = T.EEGNames(2:end);
-                    VERA_elNames = T.VERANames(2:end);
-                    eeg_elNums   = T.EEGNumbers(2:end);
-                    VERA_elNums  = T.VERANumbers(2:end);
+                    eeg_elNames  = T.EEGNames;
+                    VERA_elNames = T.VERANames;
+                    eeg_elNums   = T.EEGNumbers;
+                    VERA_elNums  = T.VERANumbers;
 
-                    elNameKey = struct('EEGNames',[],'VERANames',[],'EEGNumbers',[],'VERANumbers',[]);
+                    % Need the number of contacts identified with VERA to
+                    % match the number of rows in the excel table
+                    numVERAelecs = size(eLocs.DefinitionIdentifier,1);
+                    if numVERAelecs ~= size(VERA_elNums,1)
+                        error('Number of rows in table does not match number of identified contacts in VERA');
+                    end
+
+                    % Format table contents to channel names are strings
+                    % and channel numbers are doubles
+                    elNameKey = struct('Select',false,'EEGNames',[],'VERANames',[],'EEGNumbers',[],'VERANumbers',[]);
                     for i = 1:size(eeg_elNames,1)
-                        elNameKey(i).EEGNames    = eeg_elNames{i,1};
-                        elNameKey(i).VERANames   = VERA_elNames{i,1};
-                        elNameKey(i).EEGNumbers  = eeg_elNums{i,1};
-                        elNameKey(i).VERANumbers = VERA_elNums{i,1};
+                        if isnumeric(eeg_elNames(i))
+                            eeg_elNames_cell(i,1) = cellstr(num2str(eeg_elNames(i)));
+                        else
+                            eeg_elNames_cell(i,1) = eeg_elNames(i);
+                        end
+                        if isnumeric(VERA_elNames(i))
+                            VERA_elNames_cell(i,1) = cellstr(num2str(VERA_elNames(i)));
+                        else
+                            VERA_elNames_cell(i,1) = VERA_elNames(i);
+                        end
+                        if ~isnumeric(eeg_elNums(i))
+                            eeg_elNums(i)       = strrep(eeg_elNums(i), '"',  '');
+                            eeg_elNums(i)       = strrep(eeg_elNums(i), '''', '');
+                            eeg_elNums_dbl(i,1) = str2double(eeg_elNums(i));
+                        else
+                            eeg_elNums_dbl(i,1) = eeg_elNums(i);
+                        end
+                        if ~isnumeric(VERA_elNums(i))
+                            VERA_elNums(i)       = strrep(VERA_elNums(i), '"',  '');
+                            VERA_elNums(i)       = strrep(VERA_elNums(i), '''', '');
+                            VERA_elNums_dbl(i,1) = str2double(VERA_elNums(i));
+                        else
+                            VERA_elNums_dbl(i,1) = VERA_elNums(i);
+                        end
+
+                        elNameKey(i).Select      = false;
+                        elNameKey(i).EEGNames    = eeg_elNames_cell{i,1};
+                        elNameKey(i).VERANames   = VERA_elNames_cell{i,1};
+                        elNameKey(i).EEGNumbers  = eeg_elNums_dbl(i,1);
+                        elNameKey(i).VERANumbers = VERA_elNums_dbl(i,1);
                     end
                 end
             else
@@ -163,7 +197,19 @@ classdef EEGElectrodeNames < AComponent
                 uiwait(h);
             end
             
-            out.Definition = obj.EEGNames;
+            % Strips out the Select field name from the structure
+            EEGNames_excludeSelected = struct();
+            fields = fieldnames(obj.EEGNames);
+            for i = 1:length(fields)
+                fieldName = fields{i};
+                for j = 1:size(obj.EEGNames,2)
+                    if ~strcmp(fieldName, 'Select')
+                        EEGNames_excludeSelected(j).(fieldName) = obj.EEGNames(j).(fieldName);
+                    end
+                end
+            end
+
+            out.Definition = EEGNames_excludeSelected;
 
         end
 
@@ -240,16 +286,18 @@ classdef EEGElectrodeNames < AComponent
 
             % EEG Numbers
             for i = 1:length(vera_idx)
-                hldr{vera_idx(i),3} = num2str(eeg_idx(i));
+                % hldr{vera_idx(i),3} = num2str(eeg_idx(i));
+                hldr{vera_idx(i),3} = eeg_idx(i);
             end
 
             % VERA Numbers
             for i = 1:length(VERA_elNames)
-                hldr{i,4} = num2str(i);
+                % hldr{i,4} = num2str(i);
+                hldr{i,4} = i;
             end
 
             for i = 1:size(hldr,1)
-                elNameKey(i) = struct('EEGNames',hldr{i,1},'VERANames',hldr{i,2},'EEGNumbers',hldr{i,3},'VERANumbers',hldr{i,4});
+                elNameKey(i) = struct('Select',false,'EEGNames',hldr{i,1},'VERANames',hldr{i,2},'EEGNumbers',hldr{i,3},'VERANumbers',hldr{i,4});
             end
 
             % Empty counter (number of missed electrodes) can be used to

@@ -17,15 +17,17 @@ classdef EEGNamesView < uix.Grid & AView & IComponentView
         function obj = EEGNamesView(varargin)
 
             obj.EEGElectrodeNamesIdentifier = 'EEGNames';
-
-            if nargin > 1 
-                columnNames  = fieldnames(varargin{1,2})';
-                columnFormat = repmat({'char'}, 1, length(columnNames));
-                colEditable  = true(1,length(columnNames));
-            else
+            
+            % If called by vera main gui, have 4
+            % columns, if called by interactive window, have 5
+            if nargin == 0
                 columnNames  = {'EEG Names','VERA Names','EEG Numbers','VERA Numbers'};
-                columnFormat = {'char','char','char','char'};
+                columnFormat = {'char','char','numeric','numeric'};
                 colEditable  = [true,true,true,true];
+            else
+                columnNames  = {'Select','EEG Names','VERA Names','EEG Numbers','VERA Numbers'};
+                columnFormat = {'logical','char','char','numeric','numeric'};
+                colEditable  = [true,true,true,true,true];
             end
 
             obj.EEGNamesTable = uitable('Parent', obj,...
@@ -117,10 +119,12 @@ classdef EEGNamesView < uix.Grid & AView & IComponentView
                 else
                     fn = fieldnames(comp.EEGNames);
                     for i = 1:length(fn)
+                        % dt.Select    = false;
                         dt.(fn{i}) = {};
                     end
                     for i = 1:length(fn)
                         for j = 1:size(tbl,1)
+                            % dt(j).Select    = tbl{j,1};
                             dt(j).(fn{i}) = tbl{j,i};
                         end
                     end
@@ -134,10 +138,10 @@ classdef EEGNamesView < uix.Grid & AView & IComponentView
             comp = obj.GetComponent();
             tbl  = obj.EEGNamesTable.Data;
             if(isempty(tbl))
-                tbl      = cell(1,6);
+                tbl      = cell(1,5);
                 tbl{1,1} = false;
             else
-                tbl(end+1,:) = {'',''};
+                tbl(end+1,:) = {false,'','','',''};
             end
             obj.EEGNamesTable.Data = tbl;
             if(isprop(comp,'History'))
@@ -149,7 +153,7 @@ classdef EEGNamesView < uix.Grid & AView & IComponentView
             comp = obj.GetComponent();
             tbl  = obj.EEGNamesTable.Data;
             if(~isempty(tbl))
-                idx        = [tbl{:,1}];
+                idx        = [tbl{:,1}]; % orig
                 tbl(idx,:) = [];
             end
             obj.EEGNamesTable.Data = tbl;
