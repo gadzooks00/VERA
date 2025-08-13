@@ -1,0 +1,7 @@
+# Ignore everything
+*
+
+!SuperModel3DView.m
+!README.md
+!electrodes.txt
+!.gitignore
