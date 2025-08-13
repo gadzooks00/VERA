@@ -185,62 +185,76 @@ classdef SuperModel3DView < AView & uix.Grid
                         if(obj.AvailableData.isKey(elIdentifiers{i_elId}))
                             elPos=obj.AvailableData(elIdentifiers{i_elId});
                             if(~isempty(elPos) && ~isempty(elPos.DefinitionIdentifier))
+                                
+                                % Get electrode definition once for this electrode ID
+                                if(obj.AvailableData.isKey(elDefIdentifiers{i_elId}))
+                                    elDef=obj.AvailableData(elDefIdentifiers{i_elId});
+                                else
+                                    elDef = [];
+                                end
+                                
+                                % Get the selected labeling mode
+                                labelMode = obj.electrodeLabelDropdown.String{obj.electrodeLabelDropdown.Value};
+                                
+                                % Process each definition group and individual electrodes together
                                 for i=unique(elPos.DefinitionIdentifier)'
-                                    plotBallsOnVolume(obj.axModel,elPos.Location(elPos.DefinitionIdentifier==i,:),[],2);
-                                    if(obj.AvailableData.isKey(elDefIdentifiers{i_elId}))
-                                        elDef=obj.AvailableData(elDefIdentifiers{i_elId});
-                                        names{end+1}=elDef.Definition(i).Name;
-                                        name_id(end+1)=length(name_id)+1;
+                                    % Get locations for this definition group
+                                    groupMask = elPos.DefinitionIdentifier == i;
+                                    groupLocations = elPos.Location(groupMask, :);
+                                    groupIndices = find(groupMask);
+                                    
+                                    % Filter locations and indices based on shouldShowElectrode
+                                    validMask = false(size(groupIndices));
+                                    for idx = 1:length(groupIndices)
+                                        iLoc = groupIndices(idx);
+                                        validMask(idx) = obj.shouldShowElectrode(elPos, elDef, iLoc);
+                                    end
+                                    
+                                    % Get only the valid locations and indices
+                                    validLocations = groupLocations(validMask, :);
+                                    validIndices = groupIndices(validMask);
+                                    
+                                    % Plot balls only for valid electrodes
+                                    if ~isempty(validLocations)
+                                        plotBallsOnVolume(obj.axModel, validLocations, [], 2);
+                                        
+                                        % Add to names if definition exists
+                                        if ~isempty(elDef) && i <= numel(elDef.Definition) && isfield(elDef.Definition(i), 'Name')
+                                            names{end+1} = elDef.Definition(i).Name;
+                                            name_id(end+1) = length(name_id) + 1;
+                                        end
+                                    end
+                                    
+                                    % Add labels for valid electrodes
+                                    for idx = 1:length(validIndices)
+                                        iLoc = validIndices(idx);
+                                        
+                                        switch labelMode
+                                            case 'Channel Name'
+                                                labelStr = "n/a"; % fallback
+                                                if ~isempty(elDef) && isprop(elDef, 'Definition') ...
+                                                   && iLoc <= numel(elPos.DefinitionIdentifier)
+                                                    defIdx = elPos.DefinitionIdentifier(iLoc);
+                                                    if defIdx > 0 && defIdx <= numel(elDef.Definition) ...
+                                                    && isfield(elDef.Definition(defIdx), 'Name')
+                                                        chName = obj.buildChannelName(elPos,elDef,defIdx,iLoc);
+                                                        labelStr = chName;
+                                                    end
+                                                end
+                                            otherwise
+                                                % same old channel numbering system
+                                                labelStr = num2str(iLoc);
+                                        end
+                                        
+                                        text(obj.axModel, ...
+                                            elPos.Location(iLoc,1)+1, ...
+                                            elPos.Location(iLoc,2)+1, ...
+                                            elPos.Location(iLoc,3)+1, ...
+                                            labelStr, ...
+                                            'FontSize', 14, 'Color', 'k', ...
+                                            'Interpreter', 'none');
                                     end
                                 end
-                            end
-
-                            % Get the selected labeling mode
-                            labelMode = obj.electrodeLabelDropdown.String{obj.electrodeLabelDropdown.Value};
-                            
-                            % Get electrode definition for channel name labeling
-                            if(obj.AvailableData.isKey(elDefIdentifiers{i_elId}))
-                                elDef=obj.AvailableData(elDefIdentifiers{i_elId});
-                            else
-                                elDef = [];
-                            end
-
-                            % Add electrode labels based on selected mode
-                            for iLoc = 1:size(elPos.Location,1)
-                                % Check if this electrode should be displayed
-                                if ~obj.shouldShowElectrode(elPos, elDef, iLoc)
-                                    continue; % Skip this electrode
-                                end
-                                switch labelMode
-                                    case 'Channel Name'
-                                        labelStr = "n/a"; % fallback
-                                        if ~isempty(elDef) && isprop(elDef, 'Definition') ...
-                                           && iLoc <= numel(elPos.DefinitionIdentifier)
-
-                                            defIdx = elPos.DefinitionIdentifier(iLoc);
-                                            if defIdx > 0 && defIdx <= numel(elDef.Definition) ...
-                                            && isfield(elDef.Definition(defIdx), 'Name')
-
-                                                def_name = elDef.Definition(defIdx).Name;
-
-                                                % Match table view's channel index calculation
-                                                chidx = find(find(elPos.DefinitionIdentifier == defIdx) == iLoc);
-
-                                                labelStr = sprintf('%s%d', def_name, chidx);
-                                            end
-                                        end
-                                    otherwise
-                                        % same old channel numbering system
-                                        labelStr = num2str(iLoc);
-                                end
-
-                                text(obj.axModel, ...
-                                    elPos.Location(iLoc,1)+1, ...
-                                    elPos.Location(iLoc,2)+1, ...
-                                    elPos.Location(iLoc,3)+1, ...
-                                    labelStr, ...
-                                    'FontSize', 14, 'Color', 'k', ...
-                                    'Interpreter', 'none'); % ensure raw text
                             end
                         end
                     end
