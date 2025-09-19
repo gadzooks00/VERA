@@ -1,4 +1,4 @@
-function dirs = selectProjectFolders(varargin)
+function dirs = selectProjectFolders(multi,varargin)
 %SELECTPROJECTFOLDERS Open a dialog to select multiple folders.
 %
 %   dirs = selectProjectFolders()
@@ -16,15 +16,8 @@ function dirs = selectProjectFolders(varargin)
     import javax.swing.JFileChooser
     import javax.swing.filechooser.FileSystemView
 
-    % Handle input arguments
-    if nargin < 1 || isempty(varargin{1})
-        startPath = pwd;
-    else
-        startPath = varargin{1};
-    end
-
     if nargin < 2
-        dialogTitle = 'Select project folders';
+        dialogTitle = 'Select project folder(s)';
     else
         dialogTitle = varargin{2};
     end
@@ -33,11 +26,8 @@ function dirs = selectProjectFolders(varargin)
     chooser = JFileChooser(FileSystemView.getFileSystemView);
     chooser.setDialogTitle(dialogTitle);
     chooser.setFileSelectionMode(JFileChooser.DIRECTORIES_ONLY);
-    chooser.setMultiSelectionEnabled(true);
-
-    % Set starting path
-    if exist(startPath, 'dir')
-        chooser.setCurrentDirectory(java.io.File(startPath));
+    if multi
+        chooser.setMultiSelectionEnabled(true);
     end
 
     % Show dialog
@@ -45,8 +35,13 @@ function dirs = selectProjectFolders(varargin)
 
     % Get results
     if status == JFileChooser.APPROVE_OPTION
-        files = chooser.getSelectedFiles();
-        dirs = arrayfun(@(f) char(f.getAbsolutePath()), files, 'UniformOutput', false);
+        if multi
+            files = chooser.getSelectedFiles();
+            dirs = arrayfun(@(f) char(f.getAbsolutePath()), files, 'UniformOutput', false);
+        else
+            file = chooser.getSelectedFile();
+            dirs = {char(file.getAbsolutePath())};
+        end
     else
         dirs = {};
     end

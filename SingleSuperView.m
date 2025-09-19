@@ -1,31 +1,18 @@
-classdef SuperModel3DView < AView & Abstract3DView
+classdef SingleSuperView < Abstract3DView
     % SuperModel3DView - Concrete VERA viewer
     % Inherits plotting/filtering from Abstract3DView
     properties
-        SurfaceIdentifier = 'Surface';
-        ElectrodeLocationIdentifier = 'ElectrodeLocation';
-        ElectrodeDefinitionIdentifier = 'ElectrodeDefinition';
     end
     
     methods
-        function obj = SuperModel3DView(varargin)
-            obj@Abstract3DView(varargin{:});
+        function obj = SingleSuperView(surface,subject,varargin)
+            obj@Abstract3DView(surface,varargin{:});
+            obj.ElectrodePositions = subject.ElectrodePositions;
+            obj.ElectrodeDefinitions = subject.ElectrodeDefinitions;
+
+            obj.updateView();
         end
         
-        function loadDataFromAvailableData(obj)
-            % Populate abstract class properties from AvailableData
-            if isprop(obj,'AvailableData') && ~isempty(obj.AvailableData)
-                if obj.AvailableData.isKey(obj.SurfaceIdentifier)
-                    obj.Surface = obj.AvailableData(obj.SurfaceIdentifier);
-                end
-                if obj.AvailableData.isKey(obj.ElectrodeLocationIdentifier)
-                    obj.ElectrodePositions = obj.AvailableData(obj.ElectrodeLocationIdentifier);
-                end
-                if obj.AvailableData.isKey(obj.ElectrodeDefinitionIdentifier)
-                    obj.ElectrodeDefinitions = obj.AvailableData(obj.ElectrodeDefinitionIdentifier);
-                end
-            end
-        end
         function electrodeFilterCallback(obj)
             % Builds electrode selection UI
             if isempty(obj.ElectrodePositions)
@@ -43,13 +30,13 @@ classdef SuperModel3DView < AView & Abstract3DView
                 if ~isempty(elDef) && defIdx > 0 && defIdx <= numel(elDef.Definition)
                     nameLabels{end+1} = obj.buildChannelName(elPos,elDef,defIdx,i); %#ok<AGROW>
                 else
-                    nameLabels{end+1} = sprintf('Channel %d', i); %#ok<AGROW>
+                    nameLabels{end+1} = sprintf('Channel %d', i);
                 end
             end
             indexLabels = arrayfun(@(i) sprintf('%d',i), 1:numel(elPos.DefinitionIdentifier), 'UniformOutput', false);
 
             % Modal dialog
-            d = dialog('Name','Select Electrodes','WindowStyle','modal','Resize','on','Position',[200 200 300 400]);
+            d = uifigure('Name','Channel Selection');
 
             % Mode selection
             bg = uibuttongroup('Parent',d,'Units','normalized','Position',[0.05 0.85 0.9 0.1]);
@@ -58,25 +45,20 @@ classdef SuperModel3DView < AView & Abstract3DView
             bg.SelectedObject = r1;
 
             % Tree panel
-            treePanel = uipanel('Parent',d,'Units','normalized','Position',[0.05 0.2 0.9 0.65]);
-            [tree, container] = uitree('v0', 'Root', uitreenode('v0','root','Electrodes',[],false), 'Parent', d, 'Position', [20 80 260 250]);
-            root = tree.getRoot;
+            treePanel = uigridlayout(d,[1 1]);
+            tree = uitree(treePanel, 'checkbox');
 
             % Group electrodes by base name
             tokens = regexp(nameLabels,'^([A-Za-z]+)','tokens','once');
             baseNames = cellfun(@(t) t{1}, tokens, 'UniformOutput', false);
             uniqueBases = unique(baseNames,'stable');
             for b = 1:numel(uniqueBases)
-                parentNode = uitreenode('v0', uniqueBases{b}, uniqueBases{b}, [], false);
+                parentNode = uitreenode(tree,'Text',uniqueBases{b});
                 groupIdx = strcmp(baseNames, uniqueBases{b});
                 for i = find(groupIdx)
-                    child = uitreenode('v0', num2str(i), nameLabels{i}, [], true);
-                    child.setUserObject(i);
-                    parentNode.add(child);
+                    uitreenode(parentNode,'Text',nameLabels{i});
                 end
-                root.add(parentNode);
             end
-            tree.reloadNode(root);
 
             % OK / Cancel buttons
             uicontrol('Parent',d,'Style','pushbutton','String','OK','Units','normalized','Position',[0.55 0.05 0.4 0.1], ...
@@ -91,15 +73,13 @@ classdef SuperModel3DView < AView & Abstract3DView
             if isvalid(d)
                 cancelled = isappdata(d,'Cancelled');
                 if ~cancelled
-                    selectedNodes = tree.SelectedNodes;
-                    selectedIdx = [selectedNodes.NodeData];
-                    if bg.SelectedObject == r1
-                        selectedLabels = nameLabels(selectedIdx);
-                        obj.setElectrodeFilter('ByName',selectedLabels);
-                    else
-                        selectedIndices = cellfun(@str2double,indexLabels(selectedIdx));
-                        obj.setElectrodeFilter('ByIndex',selectedIndices);
+                    nodes = tree.CheckedNodes;
+                    names = {};
+                    for ch = 1:numel(nodes)
+                        node = nodes(ch);
+                        names{end + 1} = node.Text;
                     end
+                    obj.setElectrodeFilter('ByName',names);
                 end
                 delete(d);
             end
@@ -108,15 +88,6 @@ classdef SuperModel3DView < AView & Abstract3DView
         function cancelCallback(~,d)
             setappdata(d, 'Cancelled', true);
             uiresume(d);
-        end
-    end
-    methods (Access = protected)
-        function dataUpdate(obj)
-            if isempty(obj.Surface) % available data is loaded in after
-                                    % constructor so check here
-                obj.loadDataFromAvailableData();
-            end
-            obj.updateView();
         end
     end
 end
