@@ -1,4 +1,4 @@
-function dirs = selectProjectFolders(multi,varargin)
+function dirs = selectProjectFolders(varargin)
 %SELECTPROJECTFOLDERS Open a dialog to select multiple folders.
 %
 %   dirs = selectProjectFolders()
@@ -26,22 +26,16 @@ function dirs = selectProjectFolders(multi,varargin)
     chooser = JFileChooser(FileSystemView.getFileSystemView);
     chooser.setDialogTitle(dialogTitle);
     chooser.setFileSelectionMode(JFileChooser.DIRECTORIES_ONLY);
-    if multi
-        chooser.setMultiSelectionEnabled(true);
-    end
+    chooser.setMultiSelectionEnabled(true);
+
 
     % Show dialog
     status = chooser.showOpenDialog([]);
 
     % Get results
     if status == JFileChooser.APPROVE_OPTION
-        if multi
-            files = chooser.getSelectedFiles();
-            dirs = arrayfun(@(f) char(f.getAbsolutePath()), files, 'UniformOutput', false);
-        else
-            file = chooser.getSelectedFile();
-            dirs = {char(file.getAbsolutePath())};
-        end
+        files = chooser.getSelectedFiles();
+        dirs = arrayfun(@(f) char(f.getAbsolutePath()), files, 'UniformOutput', false);
     else
         dirs = {};
     end

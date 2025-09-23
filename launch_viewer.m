@@ -1,6 +1,6 @@
 addpath(genpath('FileFunctions'));
-multiFlag = modeDialog();
-projects = selectProjectFolders(multiFlag);
+
+projects = selectProjectFolders();
 if isempty(projects)
     disp('No projects selected.')
 end
@@ -25,7 +25,7 @@ function [subj,surface]=loadSubj(mni,proj)
     subj.ElectrodePositions = elPos;
     subj.ElectrodeDefinitions = elDef;
 end
-if multiFlag
+if numel(projects) > 1
     subjectDataMap = containers.Map();
     surfaceModel = [];
     for i=1:numel(projects)

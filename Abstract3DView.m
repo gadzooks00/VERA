@@ -20,8 +20,12 @@ classdef (Abstract) Abstract3DView < uix.Grid
         axModel         % Axes for plotting
         vSurf           % Handle to plotted surface
         electrodeLabelDropdown
+        viewModeDropdown
         cSlider
         filterButton
+        brain_cmap
+        electrode_cmap
+        coloringButton
     end
     
     methods
@@ -41,7 +45,7 @@ classdef (Abstract) Abstract3DView < uix.Grid
             % --- Shared controls panel ---
             controlHBox = uix.HBox('Parent', obj);
             
-            % Left: electrode label dropdown
+            % electrode label dropdown
             labelGrid = uix.Grid('Parent', controlHBox);
             uicontrol('Parent', labelGrid, 'Style', 'text', 'String', 'Label electrodes by:');
             obj.electrodeLabelDropdown = uicontrol('Parent', labelGrid, 'Style', 'popupmenu', ...
@@ -50,7 +54,16 @@ classdef (Abstract) Abstract3DView < uix.Grid
             labelGrid.Widths  = [120, -1];
             labelGrid.Heights = [20];
             
-            % Right: opacity slider
+            % view mode dropdown
+            viewGrid = uix.Grid('Parent', controlHBox);
+            uicontrol('Parent', viewGrid, 'Style', 'text', 'String', 'View mode:');
+            obj.viewModeDropdown = uicontrol('Parent', viewGrid, 'Style', 'popupmenu', ...
+                'String', {'Original','Projected','Projected + Arrows'}, 'Value', 1, ...
+                'Callback', @obj.viewModeCallback);
+            viewGrid.Widths  = [80, -1];
+            viewGrid.Heights = [20];
+
+            % opacity slider
             sliderGrid = uix.Grid('Parent', controlHBox);
             uicontrol('Parent', sliderGrid, 'Style', 'text', 'String', 'Opacity');
             obj.cSlider = uicontrol('Parent', sliderGrid, 'Style', 'slider', 'Min',0, 'Max',1, 'Value',1);
@@ -63,16 +76,22 @@ classdef (Abstract) Abstract3DView < uix.Grid
             obj.filterButton = uicontrol('Parent', buttonGrid, 'Style','pushbutton', ...
                 'String', 'Filter Electrodes', ...
                 'Callback', @(~,~)obj.electrodeFilterCallback());
+            obj.coloringButton = uicontrol('Parent', buttonGrid, 'Style','pushbutton', ...
+                'String', 'Coloring', ...
+                'Callback', @(~,~)obj.coloringCallback());
             buttonGrid.Heights = [30];
             buttonGrid.Widths = [-1];
             
-            controlHBox.Widths = [200, -1, 120];  % adjust as needed
+            controlHBox.Widths = [200, 180, -1, 120];  % adjust as needed
             
             % Layout
             obj.Widths  = [-1];
             obj.Heights = [-1, 60];
 
             obj.Surface = surface;
+
+            obj.electrode_cmap = [];
+            obj.brain_cmap = [];
         end
         
         %% Shared callback implementations
@@ -88,6 +107,11 @@ classdef (Abstract) Abstract3DView < uix.Grid
             obj.updateView();
         end
     
+        function viewModeCallback(obj,~,~)
+            % Viewmode dropdown changed (shared)
+            obj.updateView();
+        end
+
         function setElectrodeFilter(obj, varargin)
             % Set electrode filter criteria
             % Usage:
@@ -131,13 +155,17 @@ classdef (Abstract) Abstract3DView < uix.Grid
                 % Surface with annotation coloring
                 pbar = waitbar(0,'Creating 3D Model...');
                 barflag = 1;
-                [annotation_remap, cmap, names, name_id] = createColormapFromAnnotations(surface, barflag);
-        
+                [annotation_remap, rand_cmap, names, name_id] = ...
+                    createColormapFromAnnotations(surface, barflag);
+                
                 obj.vSurf = plot3DModel(obj.axModel, surface.Model, annotation_remap);
                 % make brain surface noninteractive
                 set(obj.vSurf, 'HitTest', 'off', 'PickableParts', 'none');
 
-                colormap(obj.axModel, cmap);
+                if isempty(obj.brain_cmap)
+                    obj.brain_cmap = rand_cmap;
+                end
+                colormap(obj.axModel, obj.brain_cmap);
                 material(obj.axModel,'dull');
         
                 obj.plotElectrodes();
@@ -172,13 +200,20 @@ classdef (Abstract) Abstract3DView < uix.Grid
         electrodeFilterCallback(obj)
     end
     methods (Access = protected)
+        function coloringCallback(obj)
+            [obj.brain_cmap,obj.electrode_cmap] = ...
+                colorDialog({obj.Surface.AnnotationLabel.Name},obj.brain_cmap,...
+                            {obj.ElectrodeDefinitions.Definition.Name}, ...
+                            obj.electrode_cmap);
+            obj.updateView();
+        end
         function plotElectrodes(obj)
             % Plot electrodes according to filter and labeling
             if isempty(obj.ElectrodePositions)
                 return;
             end
             
-            obj.ChannelHandles = [];
+            obj.ChannelHandles = {};
 
             % Determine label mode if dropdown exists
             if ~isempty(obj.electrodeLabelDropdown)
@@ -187,42 +222,97 @@ classdef (Abstract) Abstract3DView < uix.Grid
                 labelMode = 'Index';
             end
             
+            % Determine view mode if dropdown exists
+            if ~isempty(obj.viewModeDropdown)
+                viewMode = obj.viewModeDropdown.String{obj.viewModeDropdown.Value};
+            else
+                viewMode = 'Original';
+            end
+
             elPos = obj.ElectrodePositions;
             elDef = obj.ElectrodeDefinitions;
-            
-            for i = 1:numel(elPos.DefinitionIdentifier)
+
+            % Determine which coordinates to plot based on view mode
+            locOriginal = elPos.Location;  % assume [N x 3] numeric
+            coordsToPlot = locOriginal;
+            drawArrows = false;
+
+            if viewMode ~= "Original"
+                % Need projected coordinates
+                V = obj.getSurfaceVertices();
+                [proj_xyz, ~] = obj.projectElectrodesToSurface(locOriginal, V);
+                coordsToPlot = proj_xyz;
+                drawArrows = (viewMode == "Projected + Arrows");
+            end
+
+            % Build colormap if needed
+            if isempty(obj.electrode_cmap)
+                obj.electrode_cmap = rand(numel(elDef.Definition),3);
+            end
+
+            % Main loop
+            for i = 1:size(locOriginal,1)
                 if obj.shouldShowElectrode(elPos, elDef, i)
-                    loc = elPos.Location(i,:);
-                    % plot each ball one by one with a function that
-                    % is meant to plot multiple at once 
-                    % because I am a PSYCHOPATH
-                    ball = plotBallsOnVolume(obj.axModel, loc, [], 2);
 
-                    num_str = num2str(i);
-                    defIdx = elPos.DefinitionIdentifier(i);
-                    name = obj.buildChannelName(elPos,elDef,defIdx,i);
+                    % pick plotted coordinate (original or projected)
+                    locPlot = coordsToPlot(i,:);
 
+                    % Skip if projected is NaN (e.g., missing original)
+                    if any(isnan(locPlot))
+                        continue;
+                    end
+
+                    def = elPos.DefinitionIdentifier(i);
+                    color = obj.electrode_cmap(def,:);
+
+                    % Plot pickable "ball" at the *plotted* location
+                    ball = plotBallsOnVolume(obj.axModel, locPlot, color, 2);
                     ball = ball{1};
+
+                    % Tooltip payload
+                    num_str = num2str(i);
+                    def_idx = elPos.DefinitionIdentifier(i);
+                    name = obj.buildChannelName(elPos, elDef, def_idx, i);
+
                     addprop(ball,'tooltipData');
                     ball.tooltipData = struct("Name", name, ...
-                                                "ChNum", num_str, ...
-                                                "Pos", loc);
-                    obj.ChannelHandles(end+1) = ball;
-                    % Add label
-                    switch labelMode
-                        case 'Name'
-                            labelStr = name;
-                        case 'None'
-                            labelStr = '';
-                        otherwise
-                            labelStr = num_str;
+                                              "ChNum", num_str, ...
+                                              "Pos", locPlot);
+                    obj.ChannelHandles{end+1} = ball;
+
+                    % Labels (attach to plotted position)
+                    if ~strcmp(labelMode, "None")
+                        switch labelMode
+                            case 'Name'
+                                labelStr = name;
+                            otherwise
+                                labelStr = num_str;
+                        end
+                        text(obj.axModel, locPlot(1)+1, locPlot(2)+1, locPlot(3)+1, ...
+                             labelStr, 'FontSize', 14, 'Color', 'k', 'Interpreter','none');
                     end
-                    
-                    text(obj.axModel, loc(1)+1, loc(2)+1, loc(3)+1, ...
-                        labelStr, 'FontSize', 14, 'Color', 'k', 'Interpreter','none');
+
+                    % Optional: draw original point + arrow in arrows mode
+                    if drawArrows
+                        locOrig = locOriginal(i,:);
+                        if ~any(isnan(locOrig))
+                            % Original point (non-pickable)
+                            % scatter3(obj.axModel, locOrig(1), locOrig(2), locOrig(3), ...
+                            %     80, 'b', 'filled', 'MarkerEdgeColor', 'k', ...
+                            %     'HitTest','off','PickableParts','none');
+
+                            % Arrow (non-pickable)
+                            hold(obj.axModel,'on');  
+                            arrowVec = locPlot - locOrig;
+                            quiver3(obj.axModel, locOrig(1), locOrig(2), locOrig(3), ...
+                                arrowVec(1), arrowVec(2), arrowVec(3), ...
+                                0, 'k', 'LineWidth', 1.2, ...
+                                'HitTest','off','PickableParts','none');
+                            hold(obj.axModel,'off');
+                        end
+                    end
                 end
             end
-            uistack(obj.ChannelHandles,'top');
         end
         
         function showElectrode = shouldShowElectrode(obj, elPos, elDef, electrodeIdx)
@@ -282,13 +372,59 @@ classdef (Abstract) Abstract3DView < uix.Grid
         % function to create tooltips for electrodes
         function txt = tooltipUpdate(obj, evt)
             h = get(evt, 'Target');
-            if ismember(h,obj.ChannelHandles)
-                info = get(h, 'tooltipData');
-                txt = {"Name: "+info.Name,...
-                    "Ch. Num: "+info.ChNum,...
-                    "Pos: "+sprintf("x:%.2f, y:%.2f, z:%.2f",info.Pos)};
-            else
-                txt = {};
+            info = get(h, 'tooltipData');
+            txt = {"Name: "+info.Name,...
+                "Ch. Num: "+info.ChNum,...
+                "Pos: "+sprintf("x:%.2f, y:%.2f, z:%.2f",info.Pos)};
+            % Force plain text
+            set(h.DataTipTemplate, 'Interpreter','none');
+        end
+
+        % function to get surface vertices from current patch
+        function V = getSurfaceVertices(obj)
+            % Returns [Nv x 3] vertices for the current plotted surface.
+            if isempty(obj.vSurf) || ~isvalid(obj.vSurf)
+                error('Surface patch handle (vSurf) is not available. Plot the surface first.');
+            end
+            if ~isprop(obj.vSurf, 'Vertices')
+                error('Surface patch does not expose a Vertices property.');
+            end
+            V = double(obj.vSurf.Vertices);
+            if size(V,2) ~= 3
+                error('Surface vertices must be [Nv x 3].');
+            end
+        end
+
+        % function to project electrode contacts to outer convex surface
+        function [proj_xyz, idx_surface] = projectElectrodesToSurface(~, coords_xyz, V)
+            if isempty(coords_xyz)
+                proj_xyz = zeros(0,3);
+                idx_surface = zeros(0,1);
+                return;
+            end
+            if size(coords_xyz,2) ~= 3 || size(V,2) ~= 3
+                error('coords_xyz and V must be [*,3].');
+            end
+
+            % Convex hull to identify "outer" vertices only
+            k = convhull(V);                 % Mx3 triangles
+            outer_vertices = unique(k(:));   % linear indices of outer shell
+            V_outer = V(outer_vertices,:);
+
+            n_elec = size(coords_xyz,1);
+            proj_xyz    = NaN(n_elec,3);
+            idx_surface = zeros(n_elec,1);
+
+            for i = 1:n_elec
+                p = coords_xyz(i,:);
+                if any(isnan(p))
+                    continue; % leave as NaN / 0
+                end
+                d = vecnorm(V_outer - p, 2, 2);
+                [~, rel_idx] = min(d);
+                global_idx = outer_vertices(rel_idx);
+                proj_xyz(i,:) = V(global_idx,:);
+                idx_surface(i) = global_idx;
             end
         end
     end

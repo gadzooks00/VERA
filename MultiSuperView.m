@@ -29,6 +29,19 @@ classdef MultiSuperView < Abstract3DView
             obj.openFilterPopup();
         end
     end
+    methods (Access = protected)
+        function txt = tooltipUpdate(obj, evt)
+            txt = tooltipUpdate@Abstract3DView(obj, evt);
+            h = get(evt, 'Target');
+            info = get(h, 'tooltipData');
+            [arr,~] = split(info.Name,'_');
+            subj = arr(1);
+            subj = subj{:};
+            name = arr(end);
+            name = name{:}; % why do i need to index like this? MATLAB :(
+            txt = {"Subject: "+subj,"Name: "+name,txt{2},txt{3}};
+        end
+    end
     methods (Access = private)
         function openFilterPopup(obj)
             % --- Create dialog ---
