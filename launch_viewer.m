@@ -4,27 +4,7 @@ projects = selectProjectFolders();
 if isempty(projects)
     disp('No projects selected.')
 end
-function [subj,surface]=loadSubj(mni,proj)
-    dir = "DataOutput/";
-    if mni
-        dir = dir + "MNIbrain.mat";
-    else
-        dir = dir + "brain.mat";
-    end
-    data = fullfile(proj,dir);
-    load(data,'surfaceModel');
-    surface = surfaceModel;
 
-    load(data,'electrodes');    
-    % format data to make VERA happy
-    elDef.Definition = electrodes.Definition;
-    elDef.Name = 'ElectrodeDefinition';
-    
-    elPos = rmfield(electrodes,'Definition');
-
-    subj.ElectrodePositions = elPos;
-    subj.ElectrodeDefinitions = elDef;
-end
 if numel(projects) > 1
     subjectDataMap = containers.Map();
     surfaceModel = [];
@@ -45,4 +25,26 @@ else
     [subj,surface] = loadSubj(false, projects{1});
 
     viewer = SingleSuperView(surface,subj);
+end
+
+function [subj,surface]=loadSubj(mni,proj)
+    dir = "DataOutput/";
+    if mni
+        dir = dir + "MNIbrain.mat";
+    else
+        dir = dir + "brain.mat";
+    end
+    data = fullfile(proj,dir);
+    load(data,'surfaceModel');
+    surface = surfaceModel;
+
+    load(data,'electrodes');    
+    % format data to make VERA happy
+    elDef.Definition = electrodes.Definition;
+    elDef.Name = 'ElectrodeDefinition';
+    
+    elPos = rmfield(electrodes,'Definition');
+
+    subj.ElectrodePositions = elPos;
+    subj.ElectrodeDefinitions = elDef;
 end
