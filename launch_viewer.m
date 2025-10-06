@@ -12,7 +12,7 @@ end
     for i=1:numel(projects)
         proj = projects{i};
         if isempty(surfaceModel)
-            [subj,surfaceModel] = loadSubj(true, proj);
+            [subj,surfaceModel] = loadSubj(isscalar(projects), proj);
         else
             [subj,~] = loadSubj(true, proj);
         end
