@@ -1,3 +1,4 @@
+clear appearanceDialog
 addpath(genpath('FileFunctions'));
 
 projects = selectProjectFolders();
@@ -5,7 +6,7 @@ if isempty(projects)
     disp('No projects selected.')
 end
 
-if numel(projects) > 1
+%if numel(projects) > 1
     subjectDataMap = containers.Map();
     surfaceModel = [];
     for i=1:numel(projects)
@@ -20,12 +21,12 @@ if numel(projects) > 1
     end
     
     % === Launch the viewer ===
-    viewer = MultiSuperView(surfaceModel,subjectDataMap);
-else
-    [subj,surface] = loadSubj(false, projects{1});
+    viewer = Super3DView(surfaceModel,subjectDataMap);
+%else
+%    [subj,surface] = loadSubj(false, projects{1});
 
-    viewer = SingleSuperView(surface,subj);
-end
+%    viewer = SingleSuperView(surface,subj);
+%end
 
 function [subj,surface]=loadSubj(mni,proj)
     dir = "DataOutput/";
