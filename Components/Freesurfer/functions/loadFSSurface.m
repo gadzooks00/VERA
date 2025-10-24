@@ -4,9 +4,9 @@ function [lh,rh] = loadFSSurface(surfacetype,segmentationPath,subsyspath)
 %under windows so we need to get the correct target
 fallbackSuffix='';
 fd=dir(fullfile(segmentationPath,['surf/lh.' surfacetype]));
-if(isempty(fd) || fd.bytes == 0) %something went wrong with the symlink
+if(isempty(fd) || fd.bytes <= 3000) %something went wrong with the symlink
     fallbackSuffix='.T1';
-    warning(['lh.' surfacetype ' is 0 byte -- will try fallback to *h.' surfacetype '.T1 ']);
+    warning(['lh.' surfacetype ' is 3 kilobytes -- will try fallback to *h.' surfacetype '.T1 ']);
 end
 
 

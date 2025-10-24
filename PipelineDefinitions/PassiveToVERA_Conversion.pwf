@@ -1,12 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <PipelineDefinition Name="Passive To VERA Conversion Pipeline">
 
-	<Component Type="FileLoader">
-        <Name>"CT Loader"</Name>
-        <Identifier>"CT"</Identifier>
-        <IdentifierType>"Volume"</IdentifierType>
-    </Component>
-
     <Component Type="FileLoader">
         <Name>"MRI Loader"</Name>
         <Identifier>"MRI"</Identifier>
