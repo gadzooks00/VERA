@@ -13,6 +13,7 @@ classdef Super3DView < uix.Grid
         vSurf
         legendCheckbox
         exportButton
+        exportObjButton
         electrodeLabelDropdown
         filterDialog
         viewModeDropdown
@@ -56,11 +57,14 @@ classdef Super3DView < uix.Grid
             obj.exportButton = uicontrol('Parent',buttonHBox,'Style','pushbutton',...
                 'String','Export figure',...
                 'Callback',@(~,~)obj.exportFigure());
+            obj.exportObjButton = uicontrol('Parent',buttonHBox,'Style','pushbutton',...
+                'String','Export OBJ',...
+                'Callback',@(~,~)obj.exportObj());
             obj.legendCheckbox = uicontrol('Parent',buttonHBox,'Style','checkbox',...
                 'String','Legend','Value',1,...
                 'Callback',@(~,~)obj.updateView());
             obj.legendCheckbox.Value = 0; % legend off by default
-            buttonHBox.Widths = [-1, 70];
+            buttonHBox.Widths = [-1, -1, 70];
             labelBox.Heights = [20, 35];
             
             % view mode + slider
@@ -122,6 +126,58 @@ classdef Super3DView < uix.Grid
             [file, path] = uiputfile({'*.png';'*.jpg';'*.tif';'*.pdf';'*.eps'}, 'Save Axes As');
             if isequal(file,0), return; end
             exportgraphics(obj.axModel, fullfile(path,file), 'Resolution',300);
+        end
+
+        function exportObj(obj)
+            [file, path] = uiputfile({'*.obj'}, 'Save OBJ As');
+            if isequal(file,0), return; end
+
+            [~, base_name] = fileparts(file);
+
+            % convert spaces to underscores
+            base_name = replace(base_name,' ','_');
+
+            brain_base = [base_name, '_brain'];
+            elec_base  = [base_name, '_electrodes'];
+
+            % --- Build exports ---
+            have_surface = ~isempty(obj.Surface) && ~isempty(obj.Surface.Model);
+
+            fv_el = struct('vertices',[],'faces',[]);
+            el_rgb = zeros(0,3);
+            if ~isempty(obj.Subjects)
+                [fv_el, el_rgb] = obj.buildElectrodeSpheresObjExport();
+            end
+
+            fv_surf = struct('vertices',[],'faces',[]);
+            surf_rgb = zeros(0,3);
+            if have_surface
+                [fv_surf, surf_rgb] = obj.buildSurfaceObjExport();
+            end
+
+            brain_alpha = obj.cSlider.Value;
+
+            % --- Now switch folders for writing ---
+            old_dir = pwd;
+            cleanup = onCleanup(@() cd(old_dir));
+            cd(path);
+
+            % delete any prior outputs
+            if exist([brain_base, '.obj'], 'file'); delete([brain_base, '.obj']); end
+            if exist([brain_base, '.mtl'], 'file'); delete([brain_base, '.mtl']); end
+
+            if exist([elec_base, '.obj'], 'file'); delete([elec_base, '.obj']); end
+            if exist([elec_base, '.mtl'], 'file'); delete([elec_base, '.mtl']); end
+
+            % --- 1) Brain only ---
+            if have_surface
+                obj_write_color(fv_surf, brain_base, surf_rgb, 'object', brain_base, 'd', brain_alpha);
+            end
+
+            % --- 2) Electrodes only ---
+            if ~isempty(fv_el.faces)
+                obj_write_color(fv_el, elec_base, el_rgb, 'object', elec_base);
+            end
         end
 
         function appearCallback(obj)
@@ -302,26 +358,46 @@ classdef Super3DView < uix.Grid
         function subjects = buildCanonicalData(~, subjectDataMap)
             keys = subjectDataMap.keys;
             subjects = Subject.empty;
-        
+
             for k = 1:numel(keys)
-                subjID = keys{k};
-                data   = subjectDataMap(subjID);
-                elPos  = data.ElectrodePositions;
-                elDef  = data.ElectrodeDefinitions;
-        
-                contacts = Contact.empty;
-                for i = 1:size(elPos.Location,1)
-                    defIdx = elPos.DefinitionIdentifier(i);
-                    if defIdx <= 0 || defIdx > numel(elDef.Definition), continue; end
-                    defName = elDef.Definition(defIdx).Name;
-                    chName  = sprintf('%s_%s%d', subjID, defName, i);
-        
-                    contacts(end+1) = Contact(subjID, chName, defName, elPos.Location(i,:)); %#ok<AGROW>
+                subj_id = keys{k};
+                data    = subjectDataMap(subj_id);
+                el_pos  = data.ElectrodePositions;
+                el_def  = data.ElectrodeDefinitions;
+                el_pos  = data.ElectrodePositions;
+                el_def  = data.ElectrodeDefinitions;
+
+                % Defensive check: Name should align with Location rows
+                n_loc = size(el_pos.Location, 1);
+                if ~isfield(el_pos, 'Name') || numel(el_pos.Name) ~= n_loc
+                    error('ElectrodePositions.Name must exist and have one entry per Location row.');
                 end
-        
-                subjects(end+1) = Subject(subjID, contacts); %#ok<AGROW>
+
+                contacts = Contact.empty;
+
+                for i = 1:n_loc
+                    def_idx = el_pos.DefinitionIdentifier(i);
+                    if def_idx <= 0 || def_idx > numel(el_def.Definition)
+                        continue;
+                    end
+
+                    % Keep def_name as the electrode GROUP label (used for dropdown grouping)
+                    def_name = el_def.Definition(def_idx).Name;
+
+                    % Use the provided per-contact name for the channel/contact label
+                    pos_name = el_pos.Name{i};
+                    if isstring(pos_name), pos_name = char(pos_name); end
+
+                    % If you want subject prefix, do it here; otherwise just use pos_name
+                    ch_name = sprintf('%s_%s', subj_id, pos_name);
+
+                    contacts(end+1) = Contact(subj_id, ch_name, def_name, el_pos.Location(i,:));
+                end
+
+                subjects(end+1) = Subject(subj_id, contacts);
             end
         end
+
         function V = getSurfaceVertices(obj)
             if isempty(obj.vSurf) || ~isvalid(obj.vSurf)
                 error('Surface patch handle missing');
@@ -340,6 +416,114 @@ classdef Super3DView < uix.Grid
             [~,r] = min(d);
             idx_surface = outer(r);
             proj_xyz = V(idx_surface,:);
+        end
+
+        function [fv_surf, surf_rgb] = buildSurfaceObjExport(obj)
+            fv_surf.vertices = double(obj.Surface.Model.vert);
+            fv_surf.faces    = double(obj.Surface.Model.tri);
+
+            if min(fv_surf.faces(:)) == 0
+                fv_surf.faces = fv_surf.faces + 1;
+            end
+
+            fv_surf.vertices = obj.rotateVertices(fv_surf.vertices, 1, pi/2);
+
+            n_vert = size(fv_surf.vertices, 1);
+            surf_rgb = repmat([0.7 0.7 0.7], n_vert, 1);
+
+            if ~isempty(obj.annotation) && ~isempty(obj.brain_cmap)
+                ann = double(obj.annotation(:));
+                if numel(ann) == n_vert
+                    k = size(obj.brain_cmap, 1);
+                    idx = ann;
+                    idx(~isfinite(idx)) = 0;
+                    keep = (idx >= 1) & (idx <= k);
+                    surf_rgb(keep,:) = obj.brain_cmap(idx(keep),:);
+                end
+            end
+
+            surf_rgb = obj.normalizeRgb01(surf_rgb);
+        end
+
+        function [fv_el, el_rgb] = buildElectrodeSpheresObjExport(obj)
+            fv_el.vertices = [];
+            fv_el.faces    = [];
+            el_rgb         = zeros(0,3);
+
+            viewMode  = string(obj.viewModeDropdown.String{obj.viewModeDropdown.Value});
+
+            sphereRes = 16;
+            [x, y, z] = sphere(sphereRes);
+            p = surf2patch(x, y, z, 'triangles');
+            v0 = double(p.vertices);
+            f0 = double(p.faces);
+
+            v_offset = 0;
+
+            for s = 1:numel(obj.Subjects)
+                for c = 1:numel(obj.Subjects(s).Contacts)
+                    contact = obj.Subjects(s).Contacts(c);
+                    if ~contact.Visible
+                        continue;
+                    end
+
+                    locOrig = double(contact.Location);
+                    locPlot = locOrig;
+
+                    if viewMode ~= "Original"
+                        Vraw = double(obj.Surface.Model.vert);
+                        [proj_xyz, ~] = obj.projectElectrodesToSurface(locOrig, Vraw);
+                        if ~any(isnan(proj_xyz))
+                            locPlot = proj_xyz;
+                        end
+                    end
+
+                    locPlot = obj.rotateVertices(locPlot, 1, pi/2);
+                    
+                    radius = double(contact.Size);
+
+                    v_i = v0 * radius + locPlot;
+                    f_i = f0 + v_offset;
+
+                    rgb = obj.normalizeRgb01(contact.Color);
+
+                    fv_el.vertices = [fv_el.vertices; v_i];
+                    fv_el.faces    = [fv_el.faces; f_i];
+                    el_rgb         = [el_rgb; repmat(rgb, size(v_i,1), 1)];
+
+                    v_offset = v_offset + size(v_i,1);
+                end
+            end
+        end
+
+        function v_out = rotateVertices(~, V, indice, angle)
+            Rz = [ cos(angle), -sin(angle), 0 ;
+                  sin(angle), cos(angle), 0 ;
+                  0, 0, 1 ];
+            Ry = [ cos(angle), 0, sin(angle) ;
+                  0, 1, 0 ;
+                  -sin(angle), 0, cos(angle) ];
+            Rx = [ 1, 0, 0 ;
+                  0, cos(angle), -sin(angle);
+                  0, sin(angle), cos(angle) ];
+            
+            if(indice==1)
+                   v_out = V*Rx;
+            end
+            if(indice==2)
+                   v_out = V*Ry;
+            end
+            if(indice==3)
+                   v_out = V*Rz;
+            end
+        end
+
+        function rgb01 = normalizeRgb01(~, rgb)
+            rgb = double(rgb);
+            if max(rgb(:)) > 1.5
+                rgb = rgb ./ 255;
+            end
+            rgb01 = max(0, min(1, rgb));
         end
     end
 end
