@@ -156,14 +156,14 @@ for i = 1:numel(projects)
             ax(2,2) = plotROI(ax(2,2), roiMask, transform);
             ax(2,2) = plotROIElectrodes(ax(2,2), coords, nearROI, inROI);
         
-            sgtitle(sprintf('Red=In (%d) | Yellow=Near (%d) | Total=%d', ...
-                sum(inROI), sum(nearROI), numel(inROI)))
+            sgtitle(sprintf('%s: Red=In (%d) | Yellow=Near (%d) | Total=%d', ...
+                subjName, sum(inROI), sum(nearROI), numel(inROI)))
         end
         %% ============================
         % WRITE OUTPUT
         %==============================
         outFile = fullfile(proj, subjName + "_ElectrodeCoordinates.xlsx");
-        outPlot = fullfile(proj, subjName + "_ElectrodeRegionsROI.xlsx");
+        outPlot = fullfile(proj, subjName + "_ElectrodeRegionsROI.png");
 
         if isfile(outFile); delete(outFile); end
         if isfile(outPlot); delete(outPlot); end
@@ -202,9 +202,14 @@ function T = buildElectrodeTable(electrodes, mniElectrodes, ROI)
     %------------------------------
     T = table();
 
-    % Contact index and name
+    % Contact index
     T.contact_index = (1:n)';
-    T.contact_name = string(electrodes.Name(:));
+    
+    % Contact name
+    ids = electrodes.DefinitionIdentifier;
+    chidx = arrayfun(@(i) sum(ids(1:i) == ids(i)), 1:numel(ids));
+    defNames = arrayfun(@(id) electrodes.Definition(id).Name, ids, 'UniformOutput', false);
+    T.contact_name = strcat(defNames, string(chidx)');
 
     %------------------------------
     % Electrode group (Definition)
@@ -294,6 +299,13 @@ function T = buildElectrodeTable(electrodes, mniElectrodes, ROI)
     %     end
     % end
     % T.ROI_flag = ROI_flag;
+
+    %% Close oldest figures if looping
+    figs = findall(0, 'Type', 'figure');
+
+    if numel(figs) > 5
+        close(figs(6:end))   % keeps the 5 most recent
+    end
 end
 
 
