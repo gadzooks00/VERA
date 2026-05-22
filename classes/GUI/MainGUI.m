@@ -46,10 +46,12 @@ classdef MainGUI < handle
             'HandleVisibility', 'on','CloseRequestFcn',@obj.onClose);
             addToolbarExplorationButtons(obj.window);
             cameratoolbar(obj.window,'NoReset');
-            if(exist('settings.xml','file'))
-                rootpath = GetFullPath(fullfile(fileparts(mfilename('fullpath')),'..','..'));
+
+            rootpath = GetFullPath(fullfile(fileparts(mfilename('fullpath')),'..','..'));
+            if exist(fullfile(rootpath,'settings.xml'),'file')
                 DependencyHandler.Instance.LoadDependencyFile(fullfile(rootpath,'settings.xml'));
             end
+
             obj.viewTabs     = containers.Map();
             obj.hBox         = uix.HBoxFlex('Parent',    obj.window);
             obj.pipelineTree = uiw.widget.Tree('Parent', obj.hBox,'MouseClickedCallback',@obj.treeClick);
@@ -73,7 +75,7 @@ classdef MainGUI < handle
             obj.configMenuContent.pipelineContentCheck = uimenu(obj.configMenu,'Label','Pipeline Content Check','Checked','on','MenuSelectedFcn',@(~,~,~)obj.pipelineContentCheck());
             
             obj.pipelineTree.Root.Name = 'Project';
-            obj.treeNodes.Input        = uiw.widget.TreeNode('Name','Input',      'Parent',obj.pipelineTree.Root,'UserData',0);
+            obj.treeNodes.Input        = uiw.widget.TreeNode('Name','Input',      'Parent',obj.pipelineTree.Root); % ,'UserData',0
             obj.treeNodes.Processing   = uiw.widget.TreeNode('Name','Processing', 'Parent',obj.pipelineTree.Root);
             obj.treeNodes.Output       = uiw.widget.TreeNode('Name','Output',     'Parent',obj.pipelineTree.Root);
             
@@ -261,10 +263,9 @@ classdef MainGUI < handle
             %onClose - close project callback
             obj.removeTempPath();
 
-            if(exist('settings.xml','file'))
-                rootpath = GetFullPath(fullfile(fileparts(mfilename('fullpath')),'..','..'));
-                DependencyHandler.Instance.LoadDependencyFile(fullfile(rootpath,'settings.xml'));
-            end
+            rootpath = GetFullPath(fullfile(fileparts(mfilename('fullpath')),'..','..'));
+            DependencyHandler.Instance.SaveDependencyFile(fullfile(rootpath,'settings.xml'));
+
             delete(obj.Views);
             delete(obj.ProjectRunner);
             delete(hob);
@@ -332,10 +333,8 @@ classdef MainGUI < handle
                 delete(v{1});
             end
 
-            if(exist('settings.xml','file'))
-                rootpath = GetFullPath(fullfile(fileparts(mfilename('fullpath')),'..','..'));
-                DependencyHandler.Instance.LoadDependencyFile(fullfile(rootpath,'settings.xml'));
-            end
+            rootpath = GetFullPath(fullfile(fileparts(mfilename('fullpath')),'..','..'));
+            DependencyHandler.Instance.SaveDependencyFile(fullfile(rootpath,'settings.xml'));
 
             obj.viewTabs = containers.Map();
             obj.fileMenuContent.CloseProject.Enable = 'off';
