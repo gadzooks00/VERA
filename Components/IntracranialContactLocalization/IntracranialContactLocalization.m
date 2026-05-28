@@ -65,7 +65,30 @@ classdef IntracranialContactLocalization < AComponent
 
             % Path to brain mask
             if ispc
-                bm_path = fullfile(projectpath,segpath.Path,'mri','brainmask.auto.mgh');
+                mgz_path = fullfile(projectpath, segpath.Path, 'mri', 'brainmask.auto.mgz');
+                mgh_path = fullfile(projectpath, segpath.Path, 'mri', 'brainmask.auto.mgh');
+
+                % If .mgh doesn't exist, create it from .mgz
+                if ~exist(mgh_path, 'file')
+                    if exist(mgz_path, 'file')
+                        fprintf('Decompressing brainmask.auto.mgz...\n');
+
+                        % Decompress (MATLAB built-in)
+                        gunzip(mgz_path);
+
+                        % gunzip may create file without extension
+                        raw_path = fullfile(projectpath, segpath.Path, 'mri', 'brainmask.auto');
+
+                        % Rename to .mgh if needed
+                        if exist(raw_path, 'file')
+                            movefile(raw_path, mgh_path);
+                        end
+                    else
+                        error('Could not find brainmask.auto.mgz');
+                    end
+                end
+
+                bm_path = mgh_path;
             else
                 bm_path = fullfile(projectpath,segpath.Path,'mri','brainmask.auto.mgz');
             end
@@ -106,7 +129,7 @@ classdef IntracranialContactLocalization < AComponent
                 elseif strfind(def.Definition(i).Type,'PMT')
                     electrode_manufacture{i} = 'PMT';
                 else
-                    electrode_manufacture{i} = 'Unknown';
+                    electrode_manufacture{i} = 'PMT';
                 end
             end
 
